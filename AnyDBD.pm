@@ -1,11 +1,11 @@
-# $Id: AnyDBD.pm,v 1.6 2000/09/15 15:51:48 matt Exp $
+# $Id: AnyDBD.pm,v 1.9 2000/11/22 12:07:04 matt Exp $
 
 package DBIx::AnyDBD;
 use DBI;
 use strict;
 use vars qw/$AUTOLOAD $VERSION/;
 
-$VERSION = '1.97';
+$VERSION = '1.98';
 
 sub new {
     my $class = shift;
@@ -25,6 +25,7 @@ sub new {
     my $package = $args{'package'} || __PACKAGE__;
     my $self = bless { 'package' => $package, dbh => $dbh }, $class;
     $self->rebless;
+    $self->_init if $self->can('_init');
     return $self;
 }
 
@@ -37,6 +38,7 @@ sub connect {
     $package ||= __PACKAGE__;
     my $self = bless { 'package' => $package, 'dbh' => $dbh }, $class;
     $self->rebless;
+    $self->_init if $self->can('_init');
     return $self;
 }
 
@@ -138,7 +140,8 @@ sub load_module {
         require $module;
     };
     if ($@) {
-        if ($@ =~ /^Can't locate $module in @INC/) {
+        if ($@ =~ /^Can't locate $module in \@INC/) {
+            undef $@;
             return 0;
         }
         else {
@@ -248,12 +251,20 @@ If attr is undefined then the default attributes are:
 So be aware if you don't want your application dying to either eval{} all
 db sections and catch the exception, or pass in a different attr parameter.
 
+After re-blessing the object into the database specific object, DBIx::AnyDBD
+will call the _init() method on the object, if it exists. This allows you
+to perform some driver specific post-initialization.
+
 =head2 connect($dsn, $user, $pass, $attr, $package)
 
 connect() is very similar to DBI->connect, taking exactly the same first
 4 parameters. The 5th parameter is the package prefix, as above.
 
 connect() doesn't try and default attributes for you if you don't pass them.
+
+After re-blessing the object into the database specific object, DBIx::AnyDBD
+will call the _init() method on the object, if it exists. This allows you
+to perform some driver specific post-initialization.
 
 =head2 $db->get_dbh()
 

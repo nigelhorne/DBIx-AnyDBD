@@ -74,6 +74,11 @@ API
     eval{} all db sections and catch the exception, or pass in a
     different attr parameter.
 
+    After re-blessing the object into the database specific object,
+    DBIx::AnyDBD will call the _init() method on the object, if it
+    exists. This allows you to perform some driver specific post-
+    initialization.
+
   connect($dsn, $user, $pass, $attr, $package)
 
     connect() is very similar to DBI->connect, taking exactly the
@@ -82,6 +87,11 @@ API
 
     connect() doesn't try and default attributes for you if you
     don't pass them.
+
+    After re-blessing the object into the database specific object,
+    DBIx::AnyDBD will call the _init() method on the object, if it
+    exists. This allows you to perform some driver specific post-
+    initialization.
 
   $db->get_dbh()
 
