@@ -4,3 +4,4 @@ AnyDBD/Sybase.pm
 MANIFEST
 Makefile.PL
 README
+t/base.t

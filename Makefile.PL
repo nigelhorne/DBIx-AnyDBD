@@ -4,7 +4,4 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'	=> 'DBIx::AnyDBD',
     'VERSION_FROM' => 'AnyDBD.pm', # finds $VERSION
-    'dist' => {
-         'PREOP' => 'perl -MPod::Text -e "pod2text(q(AnyDBD.pm))" > README',
-         },
 );
