@@ -3,7 +3,7 @@ use DBI;
 use strict;
 use vars qw/$AUTOLOAD $VERSION/;
 
-$VERSION = '0.95';
+$VERSION = '0.96';
 
 sub new {
 	my $class = shift;
@@ -52,7 +52,7 @@ sub AUTOLOAD {
 	no strict ('refs', 'subs');
 	if ($AUTOLOAD =~ /.*::db_(\w+)$/) {
 		my $method = $1;
-		my $driver = $self->{dbh}->{Driver}->{Name};
+		my $driver = ucfirst($self->{dbh}->{Driver}->{Name});
 		my $dir;
 		($dir = $self->{package}) =~ s/::/\//g;
 		require "$dir/$driver.pm";
@@ -140,7 +140,9 @@ for your use. The named parameters are dsn, user, pass, attr and package.
 The first 4 are just the parameters passed to DBI->connect, and package
 contains the package prefix for your database dependant modules, for example,
 if package was "MyPackage", the AUTOLOADer would look for 
-MyPackage::Oracle::func, and then MyPackage::Default::func.
+MyPackage::Oracle::func, and then MyPackage::Default::func. Beware that the
+DBD driver will be ucfirst'ed, because lower case package names are reserved
+as pragmas in perl. See the known DBD package mappings below.
 
 If attr is undefined then the default attributes are:
 
@@ -164,6 +166,37 @@ This method is mainly for the DB dependant modules to use, it returns the
 underlying DBI database handle. There will probably have code added here
 to check the db is still connected, so it may be wise to always use this
 method rather than trying to retrieve $self->{dbh} directly.
+
+=head1 Multiple DBD's at once
+
+There's currently a known issue that you can't use more than one DBD driver
+at once with this module. No-one has come to me with that as a problem yet,
+and it wasn't designed for that, but I'm aware that someone might try it.
+
+The reason is because of the caching that is performed, so that AUTOLOAD
+isn't called for each time you make a method call. What happens is that
+when you call $db->db_foo for the first time, it maps DBIx::AnyDBD::db_foo
+directly to your custom function, which might be MyPackage::Pg::foo. If
+you come in with a different db handle ($db2 for example) that is connected
+to MySQL, and try to call $db2->db_foo, it will never reach the AUTOLOAD
+method because that db_foo method has already been mapped to the Pg
+method.
+
+This does not affect it's ability to do exactly the right thing on different
+instances. Which is what it was designed to do (it was designed for a
+commercial project that has to work on both Sybase and Oracle).
+
+=head1 Known DBD Package Mappings
+
+The following are the known DBD driver name mappings, including ucfirst'ing
+them:
+
+	DBD::Oracle => Oracle
+	DBD::Sybase => Sybase
+	DBD::Pg => Pg
+	DBD::mysql => Mysql
+
+If you use this on other platforms, let me know what the mappings are.
 
 =head1 LICENCE
 
