@@ -2,6 +2,7 @@ AnyDBD.pm
 MANIFEST
 Makefile.PL
 README
+Changes
 example/DB.pm
 example/DB/Default.pm
 example/DB/Pg.pm

@@ -1,4 +1,4 @@
-# $Id: DB.pm,v 1.1 2001/08/02 16:32:20 matt Exp $
+# $Id: DB.pm,v 1.2 2002/01/08 11:15:28 matt Exp $
 
 package Example::DB;
 use strict;
@@ -100,5 +100,8 @@ how to retrieve the current id value for a table, and how dates are
 encapsulated. For most purposes you should put your SQL inside the
 Default.pm file, and only put stuff in the database specific files when
 necessary.
+
+Most of the code in these files is originally by Dave Rolsky, with
+thanks.
 
 =cut

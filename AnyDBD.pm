@@ -1,11 +1,11 @@
-# $Id: AnyDBD.pm,v 1.12 2001/08/02 16:32:13 matt Exp $
+# $Id: AnyDBD.pm,v 1.15 2002/09/04 12:05:03 matt Exp $
 
 package DBIx::AnyDBD;
 use DBI;
 use strict;
 use vars qw/$AUTOLOAD $VERSION/;
 
-$VERSION = '2.00';
+$VERSION = '2.01';
 
 sub new {
     my $class = shift;
@@ -91,16 +91,15 @@ sub rebless {
         }
     }
     
-    no strict 'refs';
     my $dir;
     ($dir = $self->{package}) =~ s/::/\//g;
-    load_module("$dir/Default.pm") or die "Cannot find Default.pm module!";
+    load_module("$dir/Default.pm") or die "Cannot find $dir/Default.pm module in \@INC for $self->{package}!";
 
     if (!load_module("$dir/$driver.pm")) {
         # no package for driver - use Default instead
         bless $self, "${class}::Default";
         # make Default -> DBIx::AnyDBD hierarchy
-        @{"${class}::Default::ISA"} = ('DBIx::AnyDBD');
+        add_isa("${class}::Default", 'DBIx::AnyDBD');
     }
     else {
         # package OK...
@@ -110,13 +109,13 @@ sub rebless {
         if ($ado) {
             if (load_module("$dir/ADO.pm")) {
                 if (!load_module("$dir/ODBC.pm")) {
-                    @{"${class}::${driver}::ISA"} = ("${class}::ADO");
-                    @{"${class}::ADO::ISA"} = ("${class}::Default");
+                    add_isa("${class}::${driver}", "${class}::ADO");
+                    add_isa("${class}::ADO", "${class}::Default");
                 }
                 else {
-                    @{"${class}::${driver}::ISA"} = ("${class}::ADO");
-                    @{"${class}::ADO::ISA"} = ("${class}::ODBC");
-                    @{"${class}::ODBC::ISA"} = ("${class}::Default");
+                    add_isa("${class}::${driver}", "${class}::ADO");
+                    add_isa("${class}::ADO", "${class}::ODBC");
+                    add_isa("${class}::ODBC", "${class}::Default");
                 }
                 return;
             }
@@ -124,18 +123,25 @@ sub rebless {
         
         if ($odbc) {
             if (load_module("$dir/ODBC.pm")) {
-                @{"${class}::${driver}::ISA"} = ("${class}::ODBC");
-                @{"${class}::ODBC::ISA"} = ("${class}::Default");
+                add_isa("${class}::${driver}", "${class}::ODBC");
+                add_isa("${class}::ODBC", "${class}::Default");
                 return;
             }
         }
         
         # make Default -> DBIx::AnyDBD hierarchy
-        @{"${class}::Default::ISA"} = ('DBIx::AnyDBD');
+        add_isa("${class}::Default", 'DBIx::AnyDBD');
+        
         # make Driver -> Default hierarchy
-        @{"${class}::${driver}::ISA"} = ("${class}::Default");
+        add_isa("${class}::${driver}", "${class}::Default");
     }
     
+}
+
+sub add_isa {
+    my ($class, $newval) = @_;
+    no strict 'refs';
+    unshift @{"${class}::ISA"}, $newval unless $class->isa($newval);
 }
 
 sub load_module {
