@@ -5,7 +5,7 @@ use DBI;
 use strict;
 use vars qw/$AUTOLOAD $VERSION/;
 
-$VERSION = '0.98';
+$VERSION = '1.00';
 
 sub new {
 	my $class = shift;
@@ -58,6 +58,28 @@ sub AUTOLOAD {
 		my $origmethod = $method;
 		$method =~ s/^db_//;
 		my $driver = ucfirst($self->{dbh}->{Driver}->{Name});
+		if ($driver eq 'ODBC') {
+			my $name = $self->{dbh}->func(17, GetInfo);
+			if ($name eq 'Microsoft SQL Server') {
+				$driver = 'MSSQL';
+			}
+			elsif (($name eq 'SQL Server') || ($name eq 'Adaptive Server Anywhere')) {
+				$driver = 'Sybase';
+			}
+			elsif ($name =~ /Oracle/) {
+				$driver = 'Oracle';
+			}
+			elsif ($name eq 'ACCESS') {
+				$driver = 'Access';
+			}
+# 			elsif ($name eq 'Informix') {
+# 				$driver = 'Informix'; # caught by "else" condition below
+# 			}
+			else {
+				$driver = $name;
+				$driver =~ s/\s+/_/g;
+			}
+		}
 		my $newclass = "${class}::Driver_${driver}";
 		my $dir;
 		($dir = $self->{package}) =~ s/::/\//g;
@@ -159,7 +181,7 @@ as pragmas in perl. See the known DBD package mappings below.
 
 If attr is undefined then the default attributes are:
 
-	AutoCommit => 0
+	AutoCommit => 1
 	PrintError => 0
 	RaiseError => 1
 
@@ -180,22 +202,40 @@ underlying DBI database handle. There will probably have code added here
 to check the db is still connected, so it may be wise to always use this
 method rather than trying to retrieve $self->{dbh} directly.
 
-=head1 Multiple DBD's at once
-
-This has been fixed in the 0.98 and higher. You can now expect the right 
-thing to happen if you connect to 2 different DB's in the same script.
-
 =head1 Known DBD Package Mappings
 
 The following are the known DBD driver name mappings, including ucfirst'ing
 them:
 
-	DBD::Oracle => Oracle
-	DBD::Sybase => Sybase
-	DBD::Pg => Pg
-	DBD::mysql => Mysql
+	DBD::Oracle => Oracle.pm
+	DBD::Sybase => Sybase.pm
+	DBD::Pg => Pg.pm
+	DBD::mysql => Mysql.pm
+	DBD::Informix => Informix.pm
 
 If you use this on other platforms, let me know what the mappings are.
+
+=head2 ODBC
+
+ODBC needed special support, so when run with DBD::ODBC, we call GetInfo
+to find out what database we're connecting to, and then map to a known package.
+The following are the known package mappings for ODBC:
+
+	Microsoft SQL Server (7.0 and MSDE) => MSSQL.pm
+	Microsoft SQL Server (6.5 and below) => Sybase.pm (sorry!)
+	Sybase (ASE and ASA) => Sybase.pm
+	Microsoft Access => Access.pm
+	Informix => Informix.pm
+	Oracle => Oracle.pm
+
+Anything that isn't listed above will get mapped using the following rule:
+
+	Get rdbms name using: $dbh->func(17, GetInfo);
+	Change whitespace to a single underscore
+	Add .pm on the end.
+
+So if you need to know what your particular database will map to, simply run
+the $dbh->func(17, GetInfo) method to find out.
 
 =head1 LICENCE
 
