@@ -1,11 +1,11 @@
-# $Id: AnyDBD.pm,v 1.4 2000/04/11 10:54:02 matt Exp $
+# $Id: AnyDBD.pm,v 1.5 2000/07/25 08:33:02 matt Exp $
 
 package DBIx::AnyDBD;
 use DBI;
 use strict;
 use vars qw/$AUTOLOAD $VERSION/;
 
-$VERSION = '1.00';
+$VERSION = '1.96';
 
 sub new {
 	my $class = shift;
@@ -22,8 +22,10 @@ sub new {
 				})
 			);
 	die "Can't connect: ", DBI->errstr unless $dbh;
-	my $package = $args{package} || __PACKAGE__;
-	bless { package => $package, dbh => $dbh }, $class;
+	my $package = $args{'package'} || __PACKAGE__;
+	my $self = bless { 'package' => $package, dbh => $dbh }, $class;
+	$self->rebless;
+	return $self;
 }
 
 sub connect {
@@ -33,7 +35,113 @@ sub connect {
 	my $dbh = DBI->connect($dsn, $user, $pass, $args);
 	return undef unless $dbh;
 	$package ||= __PACKAGE__;
-	bless { package => $package, dbh => $dbh }, $class;
+	my $self = bless { 'package' => $package, 'dbh' => $dbh }, $class;
+	$self->rebless;
+	return $self;
+}
+
+sub rebless {
+	my $self = shift;
+	my $driver = ucfirst($self->{dbh}->{Driver}->{Name});
+	my $class = $self->{'package'};
+	my ($odbc, $ado) = ($driver eq 'ODBC', $driver eq 'ADO');
+	if ($odbc || $ado) {
+		my $name;
+		
+		if ($odbc) {
+			no strict;
+			$name = $self->{dbh}->func(17, GetInfo);
+		}
+		elsif ($ado) {
+			$name = $self->{dbh}->{ado_conn}->Properties->Item('DBMS Name')->Value;
+		} 
+		else {
+			die "Can't determine driver name!\n";
+		}
+		
+		if ($name eq 'Microsoft SQL Server') {
+			$driver = 'MSSQL';
+		}
+		elsif ($name eq 'SQL Server') {
+			$driver = 'Sybase';
+		}
+		elsif ($name =~ /Oracle/) {
+			$driver = 'Oracle';
+		}
+# 			elsif ($name eq 'ACCESS') {
+#     			  $driver = 'Access';
+# 			}
+# 			elsif ($name eq 'Informix') {
+#     			  $driver = 'Informix'; # caught by "else" condition below
+# 			}
+		elsif ($name eq 'Adaptive Server Anywhere') {
+			$driver = 'ASAny';
+		}
+		else {  # this should catch Access and Informix
+			$driver = lc($name);
+			$driver =~ s/\b(\w)/uc($1)/eg;
+			$driver =~ s/\s+/_/g;
+		}
+	}
+	
+	no strict 'refs';
+	my $dir;
+	($dir = $self->{package}) =~ s/::/\//g;
+	require "$dir/Default.pm";
+
+	eval {
+		require "$dir/$driver.pm";
+	};
+	if ($@) {
+		# no package for driver - use Default instead
+		require "$dir/Default.pm";
+		bless $self, "${class}::Default";
+		# make Default -> DBIx::AnyDBD hierarchy
+		@{"${class}::Default::ISA"} = ('DBIx::AnyDBD');
+	}
+	else {
+		# package OK...
+		
+		bless $self, "${class}::${driver}";
+		
+		if ($ado) {
+			eval {
+				require "$dir/ADO.pm";
+			};
+			if (!$@) {
+				eval {
+					require "$dir/ODBC.pm";
+				};
+				if ($@) {
+					@{"${class}::${driver}::ISA"} = ("${class}::ADO");
+					@{"${class}::ADO::ISA"} = ("${class}::Default");
+				}
+				else {
+					@{"${class}::${driver}::ISA"} = ("${class}::ADO");
+					@{"${class}::ADO::ISA"} = ("${class}::ODBC");
+					@{"${class}::ODBC::ISA"} = ("${class}::Default");
+				}
+				return;
+			}
+		}
+		
+		if ($odbc) {
+			eval {
+				require "$dir/ODBC.pm";
+			};
+			if (!$@) {
+				@{"${class}::${driver}::ISA"} = ("${class}::ODBC");
+				@{"${class}::ODBC::ISA"} = ("${class}::Default");
+				return;
+			}
+		}
+		
+		# make Default -> DBIx::AnyDBD hierarchy
+		@{"${class}::Default::ISA"} = ('DBIx::AnyDBD');
+		# make Driver -> Default hierarchy
+		@{"${class}::${driver}::ISA"} = ("${class}::Default");
+	}
+	
 }
 
 sub get_dbh {
@@ -50,64 +158,11 @@ sub DESTROY {
 
 sub AUTOLOAD {
 	my $self = shift;
-	return if $AUTOLOAD =~ /DESTROY$/;
-	my (@params) = @_;
-	no strict ('refs', 'subs');
-	if ($AUTOLOAD =~ /(.*)::(\w+)$/) {
-		my ($class, $method) = ($1, $2);
-		my $origmethod = $method;
-		$method =~ s/^db_//;
-		my $driver = ucfirst($self->{dbh}->{Driver}->{Name});
-		if ($driver eq 'ODBC') {
-			my $name = $self->{dbh}->func(17, GetInfo);
-			if ($name eq 'Microsoft SQL Server') {
-				$driver = 'MSSQL';
-			}
-			elsif (($name eq 'SQL Server') || ($name eq 'Adaptive Server Anywhere')) {
-				$driver = 'Sybase';
-			}
-			elsif ($name =~ /Oracle/) {
-				$driver = 'Oracle';
-			}
-			elsif ($name eq 'ACCESS') {
-				$driver = 'Access';
-			}
-# 			elsif ($name eq 'Informix') {
-# 				$driver = 'Informix'; # caught by "else" condition below
-# 			}
-			else {
-				$driver = $name;
-				$driver =~ s/\s+/_/g;
-			}
-		}
-		my $newclass = "${class}::Driver_${driver}";
-		my $dir;
-		($dir = $self->{package}) =~ s/::/\//g;
-		require "$dir/$driver.pm";
-		my $newsub = \&{"$self->{package}::$driver\::$method"};
-		if (defined &$newsub) {
-			bless $self, $newclass; # REBLESS
-			@{"${newclass}::ISA"} = $class; # REINHERIT
-			*{"${newclass}::${origmethod}"} = $newsub; # INSERT METHOD
-			&{"$self->{package}::$driver\::$method"}($self, @params);
-		}
-		else {
-			require "$dir/Default.pm";
-			$newsub = \&{"$self->{package}::Default\::$method"};
-			if (defined &$newsub) {
-				bless $self, $newclass; # AS ABOVE
-				@{"${newclass}::ISA"} = $class;
-				*{"${newclass}::${origmethod}"} = $newsub;
-				&{"$self->{package}::Default\::$method"}($self, @params);
-			}
-			else {
-				die "Method $method not found in DB Dependant classes\n";
-			}
-		}			
-	}
-	else {
-		die "No such method $AUTOLOAD\n";
-	}
+	my $func = $AUTOLOAD;
+	$func =~ s/.*:://;
+	no strict 'refs';
+	*{$AUTOLOAD} = sub { shift->get_dbh->$func(@_); };
+	return $self->get_dbh->$func(@_);
 }
 
 1;
@@ -151,14 +206,14 @@ for an example.
 
 =head1 Implementation
 
-Underneath it's all implemented using clever use of AUTOLOAD, but don't
-fret - the AUTOLOAD overhead only occurs the first time you use the method,
-thereafter if assigns the appropriate method to the *{$AUTOLOAD} glob. I
-borrowed that code from Object Oriented Perl, so thanks go to Damian Conway
-for that. The subclass it uses is "$package::" . $dbh->{Driver}->{Name}, so
-make sure you check with whichever driver you're using for what that returns,
-it's been tested with Oracle and Sybase (which use the driver names "Oracle"
-and "Sybase" respectively.
+Underneath it's all implemented using the ISA hierarchy, which is modified 
+when you connect to your database. The inheritance tree ensures that the
+right functions get called at the right time. There is also an AUTOLOADer
+that steps in if the function doesn't exist and tries to call the function
+on the database handle (i.e. in the DBI class). The sub-classing uses
+C<ucfirst($dbh->{Driver}->{Name})> (along with some clever fiddling for
+ODBC and ADO) to get the super-class, so if you don't know what to name
+your class (see the list below first) then check that.
 
 =head1 API
 
@@ -236,6 +291,27 @@ Anything that isn't listed above will get mapped using the following rule:
 
 So if you need to know what your particular database will map to, simply run
 the $dbh->func(17, GetInfo) method to find out.
+
+ODBC also inserts C<$package::ODBC.pm> into the hierarchy if it exists, so
+the hierarchy will look like:
+
+	DBIx::AnyDBD <= ODBC.pm <= Informix.pm
+
+(given that the database you're connecting to would be Informix). This is
+useful because ODBC provides its own SQL abstraction layer.
+
+=head2 ADO
+
+ADO uses the same semantics as ODBC for determining the right driver or
+module to load. However in extension to that, it inserts an ADO.pm into
+the inheritance hierarchy if it exists, so the hierarchy would look like:
+
+	DBIx::AnyDBD <= ODBC.pm <= ADO.pm <= Informix.pm
+
+I do understand that this is not fundamentally correct, as not all ADO
+connections go through ODBC, but if you're doing some of that funky stuff
+with ADO (such as queries on MS Index Server) then you're not likely to
+need this module!
 
 =head1 LICENCE
 

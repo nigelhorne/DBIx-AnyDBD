@@ -33,15 +33,16 @@ SYNOPSIS
     directory for an example.
 
 Implementation
-    Underneath it's all implemented using clever use of AUTOLOAD,
-    but don't fret - the AUTOLOAD overhead only occurs the first
-    time you use the method, thereafter if assigns the appropriate
-    method to the *{$AUTOLOAD} glob. I borrowed that code from
-    Object Oriented Perl, so thanks go to Damian Conway for that.
-    The subclass it uses is "$package::" . $dbh->{Driver}->{Name},
-    so make sure you check with whichever driver you're using for
-    what that returns, it's been tested with Oracle and Sybase
-    (which use the driver names "Oracle" and "Sybase" respectively.
+    Underneath it's all implemented using the ISA hierarchy, which
+    is modified when you connect to your database. The inheritance
+    tree ensures that the right functions get called at the right
+    time. There is also an AUTOLOADer that steps in if the function
+    doesn't exist and tries to call the function on the database
+    handle (i.e. in the DBI class). The sub-classing uses
+    `ucfirst($dbh-'{Driver}->{Name})> (along with some clever
+    fiddling for ODBC and ADO) to get the super-class, so if you
+    don't know what to name your class (see the list below first)
+    then check that.
 
 API
   new( ... )
@@ -126,6 +127,29 @@ Known DBD Package Mappings
 
     So if you need to know what your particular database will map
     to, simply run the $dbh->func(17, GetInfo) method to find out.
+
+    ODBC also inserts `$package::ODBC.pm' into the hierarchy if it
+    exists, so the hierarchy will look like:
+
+            DBIx::AnyDBD <= ODBC.pm <= Informix.pm
+
+    (given that the database you're connecting to would be
+    Informix). This is useful because ODBC provides its own SQL
+    abstraction layer.
+
+  ADO
+
+    ADO uses the same semantics as ODBC for determining the right
+    driver or module to load. However in extension to that, it
+    inserts an ADO.pm into the inheritance hierarchy if it exists,
+    so the hierarchy would look like:
+
+            DBIx::AnyDBD <= ODBC.pm <= ADO.pm <= Informix.pm
+
+    I do understand that this is not fundamentally correct, as not
+    all ADO connections go through ODBC, but if you're doing some of
+    that funky stuff with ADO (such as queries on MS Index Server)
+    then you're not likely to need this module!
 
 LICENCE
     This module is free software, and you may distribute it under
