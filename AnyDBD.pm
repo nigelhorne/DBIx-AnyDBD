@@ -1,11 +1,11 @@
-# $Id: AnyDBD.pm,v 1.11 2001/04/22 21:20:56 matt Exp $
+# $Id: AnyDBD.pm,v 1.12 2001/08/02 16:32:13 matt Exp $
 
 package DBIx::AnyDBD;
 use DBI;
 use strict;
 use vars qw/$AUTOLOAD $VERSION/;
 
-$VERSION = '1.99';
+$VERSION = '2.00';
 
 sub new {
     my $class = shift;
@@ -21,7 +21,7 @@ sub new {
                     RaiseError => 1,
                 })
             );
-    die "Can't connect: ", DBI->errstr unless $dbh;
+    die "Can't connect: " . DBI->errstr unless $dbh;
     my $package = $args{'package'} || $class;
     my $self = bless { 'package' => $package, dbh => $dbh }, $class;
     $self->rebless;
@@ -408,5 +408,9 @@ Commercial support for this module is available on a pay per incident
 basis from Fastnet Software Ltd. Contact matt@sergeant.org for further
 details. Alternatively join the DBI-Users mailing list, where I'll help
 you out for free!
+
+=head1 SEE ALSO
+
+Check out the example files in the example/ directory.
 
 =cut

@@ -1,7 +1,9 @@
 AnyDBD.pm
-AnyDBD/Default.pm
-AnyDBD/Sybase.pm
 MANIFEST
 Makefile.PL
 README
+example/DB.pm
+example/DB/Default.pm
+example/DB/Pg.pm
+example/DB/Oracle.pm
 t/base.t
