@@ -3,7 +3,7 @@ use DBI;
 use strict;
 use vars qw/$AUTOLOAD $VERSION/;
 
-$VERSION = '0.96';
+$VERSION = '0.97';
 
 sub new {
 	my $class = shift;
@@ -50,8 +50,9 @@ sub AUTOLOAD {
 	my $self = shift;
 	my (@params) = @_;
 	no strict ('refs', 'subs');
-	if ($AUTOLOAD =~ /.*::db_(\w+)$/) {
+	if ($AUTOLOAD =~ /.*::(\w+)$/) {
 		my $method = $1;
+		$method =~ s/^db_//;
 		my $driver = ucfirst($self->{dbh}->{Driver}->{Name});
 		my $dir;
 		($dir = $self->{package}) =~ s/::/\//g;
@@ -102,8 +103,8 @@ time for whatever DB is currently in use.
 	my $db = DBIx::AnyDBD->connect("dbi:Oracle:sid1", 
 		"user", "pass", {}, "MyClass");
 
-	my $foo = $db->db_foo;
-	my $blee = $db->db_blee;
+	my $foo = $db->foo;
+	my $blee = $db->blee;
 
 That doesn't really tell you much... Because you have to implement a
 bit more than that. Underneath you have to have a module 
@@ -175,11 +176,11 @@ and it wasn't designed for that, but I'm aware that someone might try it.
 
 The reason is because of the caching that is performed, so that AUTOLOAD
 isn't called for each time you make a method call. What happens is that
-when you call $db->db_foo for the first time, it maps DBIx::AnyDBD::db_foo
+when you call $db->foo for the first time, it maps DBIx::AnyDBD::foo
 directly to your custom function, which might be MyPackage::Pg::foo. If
 you come in with a different db handle ($db2 for example) that is connected
-to MySQL, and try to call $db2->db_foo, it will never reach the AUTOLOAD
-method because that db_foo method has already been mapped to the Pg
+to MySQL, and try to call $db2->foo, it will never reach the AUTOLOAD
+method because that foo method has already been mapped to the Pg
 method.
 
 This does not affect it's ability to do exactly the right thing on different
@@ -207,4 +208,5 @@ terms as Perl itself.
 
 Commercial support for this module is available on a pay per incident
 basis from Fastnet Software Ltd. Contact matt@sergeant.org for further
-details.
+details. Alternatively join the DBI-Users mailing list, where I'll help
+you out for free!
