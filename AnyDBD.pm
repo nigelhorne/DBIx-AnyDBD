@@ -1,9 +1,11 @@
+# $Id: AnyDBD.pm,v 1.4 2000/04/11 10:54:02 matt Exp $
+
 package DBIx::AnyDBD;
 use DBI;
 use strict;
 use vars qw/$AUTOLOAD $VERSION/;
 
-$VERSION = '0.97';
+$VERSION = '0.98';
 
 sub new {
 	my $class = shift;
@@ -14,7 +16,7 @@ sub new {
 			$args{pass},
 			($args{attr} ||
 				{
-					AutoCommit => 0,
+					AutoCommit => 1,
 					PrintError => 0,
 					RaiseError => 1,
 				})
@@ -48,25 +50,32 @@ sub DESTROY {
 
 sub AUTOLOAD {
 	my $self = shift;
+	return if $AUTOLOAD =~ /DESTROY$/;
 	my (@params) = @_;
 	no strict ('refs', 'subs');
-	if ($AUTOLOAD =~ /.*::(\w+)$/) {
-		my $method = $1;
+	if ($AUTOLOAD =~ /(.*)::(\w+)$/) {
+		my ($class, $method) = ($1, $2);
+		my $origmethod = $method;
 		$method =~ s/^db_//;
 		my $driver = ucfirst($self->{dbh}->{Driver}->{Name});
+		my $newclass = "${class}::Driver_${driver}";
 		my $dir;
 		($dir = $self->{package}) =~ s/::/\//g;
 		require "$dir/$driver.pm";
 		my $newsub = \&{"$self->{package}::$driver\::$method"};
 		if (defined &$newsub) {
-			*{$AUTOLOAD} = $newsub;
+			bless $self, $newclass; # REBLESS
+			@{"${newclass}::ISA"} = $class; # REINHERIT
+			*{"${newclass}::${origmethod}"} = $newsub; # INSERT METHOD
 			&{"$self->{package}::$driver\::$method"}($self, @params);
 		}
 		else {
 			require "$dir/Default.pm";
 			$newsub = \&{"$self->{package}::Default\::$method"};
 			if (defined &$newsub) {
-				*{$AUTOLOAD} = $newsub;
+				bless $self, $newclass; # AS ABOVE
+				@{"${newclass}::ISA"} = $class;
+				*{"${newclass}::${origmethod}"} = $newsub;
 				&{"$self->{package}::Default\::$method"}($self, @params);
 			}
 			else {
@@ -114,6 +123,9 @@ allowing you to implement code that doesn't need to be driver
 dependant in the same module. The foo() and blee() methods will recieve
 the DBIx::AnyDBD instance as thier first parameter, and any parameters
 you pass just go as parameters.
+
+See the example Default.pm and Sybase.pm classes in the AnyDBD directory
+for an example.
 
 =head1 Implementation
 
@@ -170,22 +182,8 @@ method rather than trying to retrieve $self->{dbh} directly.
 
 =head1 Multiple DBD's at once
 
-There's currently a known issue that you can't use more than one DBD driver
-at once with this module. No-one has come to me with that as a problem yet,
-and it wasn't designed for that, but I'm aware that someone might try it.
-
-The reason is because of the caching that is performed, so that AUTOLOAD
-isn't called for each time you make a method call. What happens is that
-when you call $db->foo for the first time, it maps DBIx::AnyDBD::foo
-directly to your custom function, which might be MyPackage::Pg::foo. If
-you come in with a different db handle ($db2 for example) that is connected
-to MySQL, and try to call $db2->foo, it will never reach the AUTOLOAD
-method because that foo method has already been mapped to the Pg
-method.
-
-This does not affect it's ability to do exactly the right thing on different
-instances. Which is what it was designed to do (it was designed for a
-commercial project that has to work on both Sybase and Oracle).
+This has been fixed in the 0.98 and higher. You can now expect the right 
+thing to happen if you connect to 2 different DB's in the same script.
 
 =head1 Known DBD Package Mappings
 

@@ -2,12 +2,13 @@ NAME
     DBIx::AnyDBD - DBD independant class
 
 DESCRIPTION
-    This class provides application developers with an abstraction class a
-    level away from DBI, that allows them to write an application that works
-    on multiple database platforms. The idea isn't to take away the
-    responsibility for coding different SQL on different platforms, but to
-    simply provide a platform that uses the right class at the right time
-    for whatever DB is currently in use.
+    This class provides application developers with an abstraction
+    class a level away from DBI, that allows them to write an
+    application that works on multiple database platforms. The idea
+    isn't to take away the responsibility for coding different SQL
+    on different platforms, but to simply provide a platform that
+    uses the right class at the right time for whatever DB is
+    currently in use.
 
 SYNOPSIS
             use DBIx::AnyDBD;
@@ -18,23 +19,28 @@ SYNOPSIS
             my $foo = $db->foo;
             my $blee = $db->blee;
 
-    That doesn't really tell you much... Because you have to implement a bit
-    more than that. Underneath you have to have a module MyClass::Oracle
-    that has methods foo() and blee in it. If those methods don't exist in
-    MyClass::Oracle, it will check in MyClass::Default, allowing you to
-    implement code that doesn't need to be driver dependant in the same
-    module. The foo() and blee() methods will recieve the DBIx::AnyDBD
-    instance as thier first parameter, and any parameters you pass just go
-    as parameters.
+    That doesn't really tell you much... Because you have to
+    implement a bit more than that. Underneath you have to have a
+    module MyClass::Oracle that has methods foo() and blee in it. If
+    those methods don't exist in MyClass::Oracle, it will check in
+    MyClass::Default, allowing you to implement code that doesn't
+    need to be driver dependant in the same module. The foo() and
+    blee() methods will recieve the DBIx::AnyDBD instance as thier
+    first parameter, and any parameters you pass just go as
+    parameters.
+
+    See the example Default.pm and Sybase.pm classes in the AnyDBD
+    directory for an example.
 
 Implementation
-    Underneath it's all implemented using clever use of AUTOLOAD, but don't
-    fret - the AUTOLOAD overhead only occurs the first time you use the
-    method, thereafter if assigns the appropriate method to the *{$AUTOLOAD}
-    glob. I borrowed that code from Object Oriented Perl, so thanks go to
-    Damian Conway for that. The subclass it uses is "$package::" . $dbh-
-    >{Driver}->{Name}, so make sure you check with whichever driver you're
-    using for what that returns, it's been tested with Oracle and Sybase
+    Underneath it's all implemented using clever use of AUTOLOAD,
+    but don't fret - the AUTOLOAD overhead only occurs the first
+    time you use the method, thereafter if assigns the appropriate
+    method to the *{$AUTOLOAD} glob. I borrowed that code from
+    Object Oriented Perl, so thanks go to Damian Conway for that.
+    The subclass it uses is "$package::" . $dbh->{Driver}->{Name},
+    so make sure you check with whichever driver you're using for
+    what that returns, it's been tested with Oracle and Sybase
     (which use the driver names "Oracle" and "Sybase" respectively.
 
 API
@@ -46,14 +52,16 @@ API
             attr => $attr,
             package => $package
 
-    new() is a named parameter call that connects and creates a new db
-    object for your use. The named parameters are dsn, user, pass, attr and
-    package. The first 4 are just the parameters passed to DBI->connect, and
-    package contains the package prefix for your database dependant modules,
-    for example, if package was "MyPackage", the AUTOLOADer would look for
-    MyPackage::Oracle::func, and then MyPackage::Default::func. Beware that
-    the DBD driver will be ucfirst'ed, because lower case package names are
-    reserved as pragmas in perl. See the known DBD package mappings below.
+    new() is a named parameter call that connects and creates a new
+    db object for your use. The named parameters are dsn, user,
+    pass, attr and package. The first 4 are just the parameters
+    passed to DBI->connect, and package contains the package prefix
+    for your database dependant modules, for example, if package was
+    "MyPackage", the AUTOLOADer would look for
+    MyPackage::Oracle::func, and then MyPackage::Default::func.
+    Beware that the DBD driver will be ucfirst'ed, because lower
+    case package names are reserved as pragmas in perl. See the
+    known DBD package mappings below.
 
     If attr is undefined then the default attributes are:
 
@@ -61,44 +69,31 @@ API
             PrintError => 0
             RaiseError => 1
 
-    So be aware if you don't want your application dying to either eval{}
-    all db sections and catch the exception, or pass in a different attr
-    parameter.
+    So be aware if you don't want your application dying to either
+    eval{} all db sections and catch the exception, or pass in a
+    different attr parameter.
 
   connect($dsn, $user, $pass, $attr, $package)
 
-    connect() is very similar to DBI->connect, taking exactly the same first
-    4 parameters. The 5th parameter is the package prefix, as above.
+    connect() is very similar to DBI->connect, taking exactly the
+    same first 4 parameters. The 5th parameter is the package
+    prefix, as above.
 
-    connect() doesn't try and default attributes for you if you don't pass
-    them.
+    connect() doesn't try and default attributes for you if you
+    don't pass them.
 
   $db->get_dbh()
 
-    This method is mainly for the DB dependant modules to use, it returns
-    the underlying DBI database handle. There will probably have code added
-    here to check the db is still connected, so it may be wise to always use
-    this method rather than trying to retrieve $self->{dbh} directly.
+    This method is mainly for the DB dependant modules to use, it
+    returns the underlying DBI database handle. There will probably
+    have code added here to check the db is still connected, so it
+    may be wise to always use this method rather than trying to
+    retrieve $self->{dbh} directly.
 
 Multiple DBD's at once
-    There's currently a known issue that you can't use more than one DBD
-    driver at once with this module. No-one has come to me with that as a
-    problem yet, and it wasn't designed for that, but I'm aware that someone
-    might try it.
-
-    The reason is because of the caching that is performed, so that AUTOLOAD
-    isn't called for each time you make a method call. What happens is that
-    when you call $db->foo for the first time, it maps DBIx::AnyDBD::foo
-    directly to your custom function, which might be MyPackage::Pg::foo. If
-    you come in with a different db handle ($db2 for example) that is
-    connected to MySQL, and try to call $db2->foo, it will never reach the
-    AUTOLOAD method because that foo method has already been mapped to the
-    Pg method.
-
-    This does not affect it's ability to do exactly the right thing on
-    different instances. Which is what it was designed to do (it was
-    designed for a commercial project that has to work on both Sybase and
-    Oracle).
+    This has been fixed in the 0.98 and higher. You can now expect
+    the right thing to happen if you connect to 2 different DB's in
+    the same script.
 
 Known DBD Package Mappings
     The following are the known DBD driver name mappings, including
@@ -109,15 +104,16 @@ Known DBD Package Mappings
             DBD::Pg => Pg
             DBD::mysql => Mysql
 
-    If you use this on other platforms, let me know what the mappings are.
+    If you use this on other platforms, let me know what the
+    mappings are.
 
 LICENCE
-    This module is free software, and you may distribute it under the same
-    terms as Perl itself.
+    This module is free software, and you may distribute it under
+    the same terms as Perl itself.
 
 SUPPORT
-    Commercial support for this module is available on a pay per incident
-    basis from Fastnet Software Ltd. Contact matt@sergeant.org for further
-    details. Alternatively join the DBI-Users mailing list, where I'll help
-    you out for free!
+    Commercial support for this module is available on a pay per
+    incident basis from Fastnet Software Ltd. Contact
+    matt@sergeant.org for further details. Alternatively join the
+    DBI-Users mailing list, where I'll help you out for free!
 

@@ -3,11 +3,17 @@ use strict;
 
 # Example Sybase class
 
-sub fred {
+sub prepare {
 	my $self = shift;
-	my @params = @_;
-	warn "FRED!: $self (", join(', ', @params), ")\n";
-	return;
+	my $sql = shift;
+	my (@params) = @_;
+
+	# prepare_cached doesn't work too well with Sybase transactions
+	# so for Sybase we just use prepare().
+	
+	return $self->get_dbh->prepare(
+			sprintf($sql, @params)
+			);
 }
 
 1;
