@@ -1,168 +1,173 @@
-# $Id: AnyDBD.pm,v 1.5 2000/07/25 08:33:02 matt Exp $
+# $Id: AnyDBD.pm,v 1.6 2000/09/15 15:51:48 matt Exp $
 
 package DBIx::AnyDBD;
 use DBI;
 use strict;
 use vars qw/$AUTOLOAD $VERSION/;
 
-$VERSION = '1.96';
+$VERSION = '1.97';
 
 sub new {
-	my $class = shift;
-	my %args = @_;
-	my $dbh = DBI->connect(
-			$args{dsn}, 
-			$args{user}, 
-			$args{pass},
-			($args{attr} ||
-				{
-					AutoCommit => 1,
-					PrintError => 0,
-					RaiseError => 1,
-				})
-			);
-	die "Can't connect: ", DBI->errstr unless $dbh;
-	my $package = $args{'package'} || __PACKAGE__;
-	my $self = bless { 'package' => $package, dbh => $dbh }, $class;
-	$self->rebless;
-	return $self;
+    my $class = shift;
+    my %args = @_;
+    my $dbh = DBI->connect(
+            $args{dsn}, 
+            $args{user}, 
+            $args{pass},
+            ($args{attr} ||
+                {
+                    AutoCommit => 1,
+                    PrintError => 0,
+                    RaiseError => 1,
+                })
+            );
+    die "Can't connect: ", DBI->errstr unless $dbh;
+    my $package = $args{'package'} || __PACKAGE__;
+    my $self = bless { 'package' => $package, dbh => $dbh }, $class;
+    $self->rebless;
+    return $self;
 }
 
 sub connect {
-	my $class = shift;
-	my ($dsn, $user, $pass, $args, $package) = @_;
-	$dsn ||= $ENV{DBI_DSN} || $ENV{DBI_DBNAME} || '';
-	my $dbh = DBI->connect($dsn, $user, $pass, $args);
-	return undef unless $dbh;
-	$package ||= __PACKAGE__;
-	my $self = bless { 'package' => $package, 'dbh' => $dbh }, $class;
-	$self->rebless;
-	return $self;
+    my $class = shift;
+    my ($dsn, $user, $pass, $args, $package) = @_;
+    $dsn ||= $ENV{DBI_DSN} || $ENV{DBI_DBNAME} || '';
+    my $dbh = DBI->connect($dsn, $user, $pass, $args);
+    return undef unless $dbh;
+    $package ||= __PACKAGE__;
+    my $self = bless { 'package' => $package, 'dbh' => $dbh }, $class;
+    $self->rebless;
+    return $self;
 }
 
 sub rebless {
-	my $self = shift;
-	my $driver = ucfirst($self->{dbh}->{Driver}->{Name});
-	my $class = $self->{'package'};
-	my ($odbc, $ado) = ($driver eq 'ODBC', $driver eq 'ADO');
-	if ($odbc || $ado) {
-		my $name;
-		
-		if ($odbc) {
-			no strict;
-			$name = $self->{dbh}->func(17, GetInfo);
-		}
-		elsif ($ado) {
-			$name = $self->{dbh}->{ado_conn}->Properties->Item('DBMS Name')->Value;
-		} 
-		else {
-			die "Can't determine driver name!\n";
-		}
-		
-		if ($name eq 'Microsoft SQL Server') {
-			$driver = 'MSSQL';
-		}
-		elsif ($name eq 'SQL Server') {
-			$driver = 'Sybase';
-		}
-		elsif ($name =~ /Oracle/) {
-			$driver = 'Oracle';
-		}
-# 			elsif ($name eq 'ACCESS') {
-#     			  $driver = 'Access';
-# 			}
-# 			elsif ($name eq 'Informix') {
-#     			  $driver = 'Informix'; # caught by "else" condition below
-# 			}
-		elsif ($name eq 'Adaptive Server Anywhere') {
-			$driver = 'ASAny';
-		}
-		else {  # this should catch Access and Informix
-			$driver = lc($name);
-			$driver =~ s/\b(\w)/uc($1)/eg;
-			$driver =~ s/\s+/_/g;
-		}
-	}
-	
-	no strict 'refs';
-	my $dir;
-	($dir = $self->{package}) =~ s/::/\//g;
-	require "$dir/Default.pm";
+    my $self = shift;
+    my $driver = ucfirst($self->{dbh}->{Driver}->{Name});
+    my $class = $self->{'package'};
+    my ($odbc, $ado) = ($driver eq 'ODBC', $driver eq 'ADO');
+    if ($odbc || $ado) {
+        my $name;
+        
+        if ($odbc) {
+            no strict;
+            $name = $self->{dbh}->func(17, GetInfo);
+        }
+        elsif ($ado) {
+            $name = $self->{dbh}->{ado_conn}->Properties->Item('DBMS Name')->Value;
+        } 
+        else {
+            die "Can't determine driver name!\n";
+        }
+        
+        if ($name eq 'Microsoft SQL Server') {
+            $driver = 'MSSQL';
+        }
+        elsif ($name eq 'SQL Server') {
+            $driver = 'Sybase';
+        }
+        elsif ($name =~ /Oracle/) {
+            $driver = 'Oracle';
+        }
+#             elsif ($name eq 'ACCESS') {
+#                   $driver = 'Access';
+#             }
+#             elsif ($name eq 'Informix') {
+#                   $driver = 'Informix'; # caught by "else" condition below
+#             }
+        elsif ($name eq 'Adaptive Server Anywhere') {
+            $driver = 'ASAny';
+        }
+        else {  # this should catch Access and Informix
+            $driver = lc($name);
+            $driver =~ s/\b(\w)/uc($1)/eg;
+            $driver =~ s/\s+/_/g;
+        }
+    }
+    
+    no strict 'refs';
+    my $dir;
+    ($dir = $self->{package}) =~ s/::/\//g;
+    load_module("$dir/Default.pm") or die "Cannot find Default.pm module!";
 
-	eval {
-		require "$dir/$driver.pm";
-	};
-	if ($@) {
-		# no package for driver - use Default instead
-		require "$dir/Default.pm";
-		bless $self, "${class}::Default";
-		# make Default -> DBIx::AnyDBD hierarchy
-		@{"${class}::Default::ISA"} = ('DBIx::AnyDBD');
-	}
-	else {
-		# package OK...
-		
-		bless $self, "${class}::${driver}";
-		
-		if ($ado) {
-			eval {
-				require "$dir/ADO.pm";
-			};
-			if (!$@) {
-				eval {
-					require "$dir/ODBC.pm";
-				};
-				if ($@) {
-					@{"${class}::${driver}::ISA"} = ("${class}::ADO");
-					@{"${class}::ADO::ISA"} = ("${class}::Default");
-				}
-				else {
-					@{"${class}::${driver}::ISA"} = ("${class}::ADO");
-					@{"${class}::ADO::ISA"} = ("${class}::ODBC");
-					@{"${class}::ODBC::ISA"} = ("${class}::Default");
-				}
-				return;
-			}
-		}
-		
-		if ($odbc) {
-			eval {
-				require "$dir/ODBC.pm";
-			};
-			if (!$@) {
-				@{"${class}::${driver}::ISA"} = ("${class}::ODBC");
-				@{"${class}::ODBC::ISA"} = ("${class}::Default");
-				return;
-			}
-		}
-		
-		# make Default -> DBIx::AnyDBD hierarchy
-		@{"${class}::Default::ISA"} = ('DBIx::AnyDBD');
-		# make Driver -> Default hierarchy
-		@{"${class}::${driver}::ISA"} = ("${class}::Default");
-	}
-	
+    if (!load_module("$dir/$driver.pm")) {
+        # no package for driver - use Default instead
+        bless $self, "${class}::Default";
+        # make Default -> DBIx::AnyDBD hierarchy
+        @{"${class}::Default::ISA"} = ('DBIx::AnyDBD');
+    }
+    else {
+        # package OK...
+        
+        bless $self, "${class}::${driver}";
+        
+        if ($ado) {
+            if (load_module("$dir/ADO.pm")) {
+                if (!load_module("$dir/ODBC.pm")) {
+                    @{"${class}::${driver}::ISA"} = ("${class}::ADO");
+                    @{"${class}::ADO::ISA"} = ("${class}::Default");
+                }
+                else {
+                    @{"${class}::${driver}::ISA"} = ("${class}::ADO");
+                    @{"${class}::ADO::ISA"} = ("${class}::ODBC");
+                    @{"${class}::ODBC::ISA"} = ("${class}::Default");
+                }
+                return;
+            }
+        }
+        
+        if ($odbc) {
+            if (load_module("$dir/ODBC.pm")) {
+                @{"${class}::${driver}::ISA"} = ("${class}::ODBC");
+                @{"${class}::ODBC::ISA"} = ("${class}::Default");
+                return;
+            }
+        }
+        
+        # make Default -> DBIx::AnyDBD hierarchy
+        @{"${class}::Default::ISA"} = ('DBIx::AnyDBD');
+        # make Driver -> Default hierarchy
+        @{"${class}::${driver}::ISA"} = ("${class}::Default");
+    }
+    
+}
+
+sub load_module {
+    my $module = shift;
+    
+    eval {
+        require $module;
+    };
+    if ($@) {
+        if ($@ =~ /^Can't locate $module in @INC/) {
+            return 0;
+        }
+        else {
+            die $@;
+        }
+    }
+    
+    return 1;
 }
 
 sub get_dbh {
-	my $self = shift;
-	# maybe add code here to check connection status.
-	# or maybe add check once every 10 get_dbh's...
-	return $self->{dbh};
+    my $self = shift;
+    # maybe add code here to check connection status.
+    # or maybe add check once every 10 get_dbh's...
+    return $self->{dbh};
 }
 
 sub DESTROY {
-	my $self = shift;
-	$self->{dbh}->disconnect;
+    my $self = shift;
+    $self->{dbh}->disconnect;
 }
 
 sub AUTOLOAD {
-	my $self = shift;
-	my $func = $AUTOLOAD;
-	$func =~ s/.*:://;
-	no strict 'refs';
-	*{$AUTOLOAD} = sub { shift->get_dbh->$func(@_); };
-	return $self->get_dbh->$func(@_);
+    my $self = shift;
+    my $func = $AUTOLOAD;
+    $func =~ s/.*:://;
+    no strict 'refs';
+    *{$AUTOLOAD} = sub { shift->get_dbh->$func(@_); };
+    return $self->get_dbh->$func(@_);
 }
 
 1;
@@ -184,13 +189,13 @@ time for whatever DB is currently in use.
 
 =head1 SYNOPSIS
 
-	use DBIx::AnyDBD;
-	
-	my $db = DBIx::AnyDBD->connect("dbi:Oracle:sid1", 
-		"user", "pass", {}, "MyClass");
+    use DBIx::AnyDBD;
+    
+    my $db = DBIx::AnyDBD->connect("dbi:Oracle:sid1", 
+        "user", "pass", {}, "MyClass");
 
-	my $foo = $db->foo;
-	my $blee = $db->blee;
+    my $foo = $db->foo;
+    my $blee = $db->blee;
 
 That doesn't really tell you much... Because you have to implement a
 bit more than that. Underneath you have to have a module 
@@ -219,11 +224,11 @@ your class (see the list below first) then check that.
 
 =head2 new( ... )
 
-	dsn => $dsn, 
-	user => $user, 
-	pass => $pass, 
-	attr => $attr,
-	package => $package
+    dsn => $dsn, 
+    user => $user, 
+    pass => $pass, 
+    attr => $attr,
+    package => $package
 
 new() is a named parameter call that connects and creates a new db object
 for your use. The named parameters are dsn, user, pass, attr and package.
@@ -236,9 +241,9 @@ as pragmas in perl. See the known DBD package mappings below.
 
 If attr is undefined then the default attributes are:
 
-	AutoCommit => 1
-	PrintError => 0
-	RaiseError => 1
+    AutoCommit => 1
+    PrintError => 0
+    RaiseError => 1
 
 So be aware if you don't want your application dying to either eval{} all
 db sections and catch the exception, or pass in a different attr parameter.
@@ -262,11 +267,11 @@ method rather than trying to retrieve $self->{dbh} directly.
 The following are the known DBD driver name mappings, including ucfirst'ing
 them:
 
-	DBD::Oracle => Oracle.pm
-	DBD::Sybase => Sybase.pm
-	DBD::Pg => Pg.pm
-	DBD::mysql => Mysql.pm
-	DBD::Informix => Informix.pm
+    DBD::Oracle => Oracle.pm
+    DBD::Sybase => Sybase.pm
+    DBD::Pg => Pg.pm
+    DBD::mysql => Mysql.pm
+    DBD::Informix => Informix.pm
 
 If you use this on other platforms, let me know what the mappings are.
 
@@ -276,18 +281,18 @@ ODBC needed special support, so when run with DBD::ODBC, we call GetInfo
 to find out what database we're connecting to, and then map to a known package.
 The following are the known package mappings for ODBC:
 
-	Microsoft SQL Server (7.0 and MSDE) => MSSQL.pm
-	Microsoft SQL Server (6.5 and below) => Sybase.pm (sorry!)
-	Sybase (ASE and ASA) => Sybase.pm
-	Microsoft Access => Access.pm
-	Informix => Informix.pm
-	Oracle => Oracle.pm
+    Microsoft SQL Server (7.0 and MSDE) => MSSQL.pm
+    Microsoft SQL Server (6.5 and below) => Sybase.pm (sorry!)
+    Sybase (ASE and ASA) => Sybase.pm
+    Microsoft Access => Access.pm
+    Informix => Informix.pm
+    Oracle => Oracle.pm
 
 Anything that isn't listed above will get mapped using the following rule:
 
-	Get rdbms name using: $dbh->func(17, GetInfo);
-	Change whitespace to a single underscore
-	Add .pm on the end.
+    Get rdbms name using: $dbh->func(17, GetInfo);
+    Change whitespace to a single underscore
+    Add .pm on the end.
 
 So if you need to know what your particular database will map to, simply run
 the $dbh->func(17, GetInfo) method to find out.
@@ -295,7 +300,7 @@ the $dbh->func(17, GetInfo) method to find out.
 ODBC also inserts C<$package::ODBC.pm> into the hierarchy if it exists, so
 the hierarchy will look like:
 
-	DBIx::AnyDBD <= ODBC.pm <= Informix.pm
+    DBIx::AnyDBD <= ODBC.pm <= Informix.pm
 
 (given that the database you're connecting to would be Informix). This is
 useful because ODBC provides its own SQL abstraction layer.
@@ -306,7 +311,7 @@ ADO uses the same semantics as ODBC for determining the right driver or
 module to load. However in extension to that, it inserts an ADO.pm into
 the inheritance hierarchy if it exists, so the hierarchy would look like:
 
-	DBIx::AnyDBD <= ODBC.pm <= ADO.pm <= Informix.pm
+    DBIx::AnyDBD <= ODBC.pm <= ADO.pm <= Informix.pm
 
 I do understand that this is not fundamentally correct, as not all ADO
 connections go through ODBC, but if you're doing some of that funky stuff
