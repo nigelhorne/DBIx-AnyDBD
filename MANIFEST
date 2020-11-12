@@ -1,10 +1,10 @@
-AnyDBD.pm
-MANIFEST
-Makefile.PL
-README
 Changes
 example/DB.pm
 example/DB/Default.pm
-example/DB/Pg.pm
 example/DB/Oracle.pm
+example/DB/Pg.pm
+lib/DBIx/AnyDBD.pm
+Makefile.PL
+MANIFEST
+README
 t/base.t
