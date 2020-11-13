@@ -7,7 +7,7 @@ use vars qw/$AUTOLOAD $VERSION/;
 
 =head1 NAME
 
-DBIx::AnyDBD - DBD independant class
+DBIx::AnyDBD - DBD independent class
 
 =head1 VERSION
 
@@ -17,9 +17,92 @@ Version 2.02
 
 our $VERSION = '0.70';
 
+=head1 SYNOPSIS
+
+This class provides application developers with an abstraction class
+a level away from DBI, that allows them to write an application that
+works on multiple database platforms. The idea isn't to take away the
+responsibility for coding different SQL on different platforms, but
+to simply provide a platform that uses the right class at the right
+time for whatever DB is currently in use.
+
+
+    use DBIx::AnyDBD;
+    
+    my $db = DBIx::AnyDBD->connect("dbi:Oracle:sid1", 
+        "user", "pass", {}, "MyClass");
+
+    my $foo = $db->foo;
+    my $blee = $db->blee;
+
+That doesn't really tell you much... Because you have to implement a
+bit more than that. Underneath you have to have a module 
+MyClass::Oracle that has methods foo() and blee in it. If those
+methods don't exist in MyClass::Oracle, it will check in MyClass::Default,
+allowing you to implement code that doesn't need to be driver
+dependent in the same module. The foo() and blee() methods will receive
+the DBIx::AnyDBD instance as thier first parameter, and any parameters
+you pass just go as parameters.
+
+See the example Default.pm and Sybase.pm classes in the AnyDBD directory
+for an example.
+
+Underneath it's all implemented using the ISA hierarchy, which is modified 
+when you connect to your database. The inheritance tree ensures that the
+right functions get called at the right time. There is also an AUTOLOADer
+that steps in if the function doesn't exist and tries to call the function
+on the database handle (i.e. in the DBI class). The sub-classing uses
+C<ucfirst($dbh->{Driver}->{Name})> (along with some clever fiddling for
+ODBC and ADO) to get the super-class, so if you don't know what to name
+your class (see the list below first) then check that.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 new
+
+    dsn => $dsn, 
+    user => $user, 
+    pass => $pass, 
+    attr => $attr,
+    package => $package
+
+new() is a named parameter call that connects and creates a new db object
+for your use. The named parameters are dsn, user, pass, attr and package.
+The first 4 are just the parameters passed to DBI->connect, and package
+contains the package prefix for your database dependent modules, for example,
+if package was "MyPackage", the AUTOLOADer would look for 
+MyPackage::Oracle::func, and then MyPackage::Default::func. Beware that the
+DBD driver will be ucfirst'ed, because lower case package names are reserved
+as pragmas in perl. See the known DBD package mappings below.
+
+If package parameter is undefined then the package name used to call
+the constructor is used.  This will usually be DBIx::AnyDBD.  This, in
+itself, is not very useful but is convenient if you subclass
+DBIx::AnyDBD.
+
+If attr is undefined then the default attributes are:
+
+    AutoCommit => 1
+    PrintError => 0
+    RaiseError => 1
+
+So be aware if you don't want your application dying to either eval{} all
+db sections and catch the exception, or pass in a different attr parameter.
+
+After re-blessing the object into the database specific object, DBIx::AnyDBD
+will call the _init() method on the object, if it exists. This allows you
+to perform some driver specific post-initialization.
+
+=cut
+
 sub new {
-    my $class = shift;
-    my %args = @_;
+	my $proto = shift;
+	my %args = @_;
+
+	my $class = ref($proto) || $proto;
+
+	return unless(defined($class));
+
     my $dbh = DBI->connect(
             $args{dsn}, 
             $args{user}, 
@@ -55,6 +138,19 @@ sub new_with_dbh {
 	
 	return $self;
 }
+
+=head2 connect($dsn, $user, $pass, $attr, $package)
+
+connect() is very similar to DBI->connect, taking exactly the same first
+4 parameters. The 5th parameter is the package prefix, as above.
+
+connect() doesn't try and default attributes for you if you don't pass them.
+
+After re-blessing the object into the database specific object, DBIx::AnyDBD
+will call the _init() method on the object, if it exists. This allows you
+to perform some driver specific post-initialization.
+
+=cut
 
 sub connect {
     my $class = shift;
@@ -190,6 +286,15 @@ sub load_module {
     return 1;
 }
 
+=head2 $db->get_dbh()
+
+This method is mainly for the DB dependent modules to use, it returns the
+underlying DBI database handle. There will probably have code added here
+to check the db is still connected, so it may be wise to always use this
+method rather than trying to retrieve $self->{dbh} directly.
+
+=cut
+
 sub get_dbh {
     # maybe add code here to check connection status.
     # or maybe add check once every 10 get_dbh's...
@@ -203,6 +308,39 @@ sub DESTROY {
         $dbh->disconnect;
     }
 }
+
+=head2 Controlling error propagation from AUTOLOADed DBI methods
+
+Typicially the implementation packages will make calls to DBI methods
+as though they were methods of the DBIx::AnyDBD object.  If one of
+these methods reports an error in DBI::AnyDBD then the error is caught
+and rethrown by DBIx::AnyDBD so that the error is reported as occuring
+in the implementation module.  It does this by calling Carp::croak()
+with the current package set to DBIx::AnyDBD::Carp.
+
+Usually this the the right thing to do but sometimes you may want to
+report the error in the line containing the original method call on
+the DBIx::AnyDBD object.  In this case you should temporarily set
+@DBIx::AnyDBD::Carp::ISA.
+
+    my $db = DBIx::AnyDBD->connect("dbi:Oracle:sid1", 
+        "user", "pass", {}, "MyClass");
+
+    my $foo = $db->foo;
+    my $blee = $db->blee("too few arguments"); # Error reported here
+
+    package MyClass::Oracle;
+    
+    sub foo { 
+	shift->prepare("Invalid SQL"); # Error reported here
+    }
+
+    sub blee {
+	local @DBIx::AnyDBD::Carp::ISA = __PACKAGE__;
+	shift->selectall_arrayref(BLEE_STATEMENT,{},@_); # Error not reported here
+    }
+
+=cut
 
 sub AUTOLOAD {
     (my $func = $AUTOLOAD) =~ s/.*:://;
@@ -240,108 +378,9 @@ sub AUTOLOAD {
 
 __END__
 
-=head1 NAME
+=head1 NOTES
 
-DBIx::AnyDBD - DBD independant class
-
-=head1 DESCRIPTION
-
-This class provides application developers with an abstraction class
-a level away from DBI, that allows them to write an application that
-works on multiple database platforms. The idea isn't to take away the
-responsibility for coding different SQL on different platforms, but
-to simply provide a platform that uses the right class at the right
-time for whatever DB is currently in use.
-
-=head1 SYNOPSIS
-
-    use DBIx::AnyDBD;
-    
-    my $db = DBIx::AnyDBD->connect("dbi:Oracle:sid1", 
-        "user", "pass", {}, "MyClass");
-
-    my $foo = $db->foo;
-    my $blee = $db->blee;
-
-That doesn't really tell you much... Because you have to implement a
-bit more than that. Underneath you have to have a module 
-MyClass::Oracle that has methods foo() and blee in it. If those
-methods don't exist in MyClass::Oracle, it will check in MyClass::Default,
-allowing you to implement code that doesn't need to be driver
-dependant in the same module. The foo() and blee() methods will recieve
-the DBIx::AnyDBD instance as thier first parameter, and any parameters
-you pass just go as parameters.
-
-See the example Default.pm and Sybase.pm classes in the AnyDBD directory
-for an example.
-
-=head1 Implementation
-
-Underneath it's all implemented using the ISA hierarchy, which is modified 
-when you connect to your database. The inheritance tree ensures that the
-right functions get called at the right time. There is also an AUTOLOADer
-that steps in if the function doesn't exist and tries to call the function
-on the database handle (i.e. in the DBI class). The sub-classing uses
-C<ucfirst($dbh->{Driver}->{Name})> (along with some clever fiddling for
-ODBC and ADO) to get the super-class, so if you don't know what to name
-your class (see the list below first) then check that.
-
-=head1 API
-
-=head2 new( ... )
-
-    dsn => $dsn, 
-    user => $user, 
-    pass => $pass, 
-    attr => $attr,
-    package => $package
-
-new() is a named parameter call that connects and creates a new db object
-for your use. The named parameters are dsn, user, pass, attr and package.
-The first 4 are just the parameters passed to DBI->connect, and package
-contains the package prefix for your database dependant modules, for example,
-if package was "MyPackage", the AUTOLOADer would look for 
-MyPackage::Oracle::func, and then MyPackage::Default::func. Beware that the
-DBD driver will be ucfirst'ed, because lower case package names are reserved
-as pragmas in perl. See the known DBD package mappings below.
-
-If package parameter is undefined then the package name used to call
-the constructor is used.  This will usually be DBIx::AnyDBD.  This, in
-itself, is not very useful but is convenient if you subclass
-DBIx::AnyDBD.
-
-If attr is undefined then the default attributes are:
-
-    AutoCommit => 1
-    PrintError => 0
-    RaiseError => 1
-
-So be aware if you don't want your application dying to either eval{} all
-db sections and catch the exception, or pass in a different attr parameter.
-
-After re-blessing the object into the database specific object, DBIx::AnyDBD
-will call the _init() method on the object, if it exists. This allows you
-to perform some driver specific post-initialization.
-
-=head2 connect($dsn, $user, $pass, $attr, $package)
-
-connect() is very similar to DBI->connect, taking exactly the same first
-4 parameters. The 5th parameter is the package prefix, as above.
-
-connect() doesn't try and default attributes for you if you don't pass them.
-
-After re-blessing the object into the database specific object, DBIx::AnyDBD
-will call the _init() method on the object, if it exists. This allows you
-to perform some driver specific post-initialization.
-
-=head2 $db->get_dbh()
-
-This method is mainly for the DB dependant modules to use, it returns the
-underlying DBI database handle. There will probably have code added here
-to check the db is still connected, so it may be wise to always use this
-method rather than trying to retrieve $self->{dbh} directly.
-
-=head1 Known DBD Package Mappings
+=head2 Known DBD Package Mappings
 
 The following are the known DBD driver name mappings, including ucfirst'ing
 them:
@@ -399,37 +438,6 @@ connections go through ODBC, but if you're doing some of that funky stuff
 with ADO (such as queries on MS Index Server) then you're not likely to
 need this module!
 
-=head1 Controlling error propagation from AUTOLOADed DBI methods
-
-Typicially the implementation packages will make calls to DBI methods
-as though they were methods of the DBIx::AnyDBD object.  If one of
-these methods reports an error in DBI::AnyDBD then the error is caught
-and rethrown by DBIx::AnyDBD so that the error is reported as occuring
-in the implementation module.  It does this by calling Carp::croak()
-with the current package set to DBIx::AnyDBD::Carp.
-
-Usually this the the right thing to do but sometimes you may want to
-report the error in the line containing the original method call on
-the DBIx::AnyDBD object.  In this case you should temporarily set
-@DBIx::AnyDBD::Carp::ISA.
-
-    my $db = DBIx::AnyDBD->connect("dbi:Oracle:sid1", 
-        "user", "pass", {}, "MyClass");
-
-    my $foo = $db->foo;
-    my $blee = $db->blee("too few arguments"); # Error reported here
-
-    package MyClass::Oracle;
-    
-    sub foo { 
-	shift->prepare("Invalid SQL"); # Error reported here
-    }
-
-    sub blee {
-	local @DBIx::AnyDBD::Carp::ISA = __PACKAGE__;
-	shift->selectall_arrayref(BLEE_STATEMENT,{},@_); # Error not reported here
-    }
-
 =head1 LICENCE
 
 This module is free software, and you may distribute it under the same 
@@ -446,3 +454,47 @@ Maintained by Nigel Horne, C<< <njh at bandsman.co.uk> >>
 Check out the example files in the example/ directory.
 
 =cut
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc DBIx::AnyDBD
+
+You can also look for information at:
+
+=over 4
+
+=item * MetaCPAN
+
+L<https://metacpan.org/release/DBIx-AnyDBD>
+
+=item * RT: CPAN's request tracker
+
+L<https://rt.cpan.org/NoAuth/Bugs.html?Dist=DBIx-AnyDBD>
+
+=item * CPANTS
+
+L<http://cpants.cpanauthors.org/dist/DBIx-AnyDBD>
+
+=item * CPAN Testers' Matrix
+
+L<http://matrix.cpantesters.org/?dist=DBIx-AnyDBD>
+
+=item * CPAN Ratings
+
+L<http://cpanratings.perl.org/d/DBIx-AnyDBD>
+
+=item * CPAN Testers Dependencies
+
+L<http://deps.cpantesters.org/?module=DBIx::AnyDBD>
+
+=item * Search CPAN
+
+L<http://search.cpan.org/dist/DBIx-AnyDBD/>
+
+=back
+
+=cut
+
+1;
