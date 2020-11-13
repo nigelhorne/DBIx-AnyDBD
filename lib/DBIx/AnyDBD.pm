@@ -2,6 +2,7 @@
 
 package DBIx::AnyDBD;
 use DBI;
+use warnings;
 use strict;
 use vars qw/$AUTOLOAD $VERSION/;
 
