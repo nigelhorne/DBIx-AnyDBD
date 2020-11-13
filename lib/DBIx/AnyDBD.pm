@@ -492,10 +492,6 @@ L<http://cpanratings.perl.org/d/DBIx-AnyDBD>
 
 L<http://deps.cpantesters.org/?module=DBIx::AnyDBD>
 
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/DBIx-AnyDBD/>
-
 =back
 
 =cut
