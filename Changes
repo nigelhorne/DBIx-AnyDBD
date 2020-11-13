@@ -1,5 +1,8 @@
 Changes for DBIx::AnyDBD
 
+2.03
+	Added new_with_dbh, RT#5661
+
 2.02	Mon Nov  9 18:58:51 EST 2020
 	No changes to the code, new maintainer - thanks to MSEARGENT
 

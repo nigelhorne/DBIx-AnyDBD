@@ -5,7 +5,17 @@ use DBI;
 use strict;
 use vars qw/$AUTOLOAD $VERSION/;
 
-$VERSION = '2.02';
+=head1 NAME
+
+DBIx::AnyDBD - DBD independant class
+
+=head1 VERSION
+
+Version 2.02
+
+=cut
+
+our $VERSION = '0.70';
 
 sub new {
     my $class = shift;
@@ -27,6 +37,23 @@ sub new {
     $self->rebless;
     $self->_init if $self->can('_init');
     return $self;
+}
+
+=head2 new_with_dbh
+
+Instantiate an object around an existing DBI database handle.
+
+=cut
+
+# RT#5661
+sub new_with_dbh {
+	my ($class, $dbh, $package) = @_;
+	my $self = bless { 'package' => $package, 'dbh' => $dbh }, $class;
+
+	$self->rebless;
+	$self->_init if $self->can('_init');
+	
+	return $self;
 }
 
 sub connect {
