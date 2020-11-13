@@ -7,4 +7,7 @@ lib/DBIx/AnyDBD.pm
 Makefile.PL
 MANIFEST
 README
-t/base.t
+README.md
+t/00-load.t
+t/pod-cm.t
+t/pod.t
