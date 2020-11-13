@@ -1,6 +1,15 @@
-print "1..2\n";
+#!perl -wT
 
-require DBIx::AnyDBD;
-print "ok 1\n";
+use strict;
 
-print "ok 2\n";
+use lib 'lib';
+use Test::Most tests => 1;
+
+require_ok('DBIx::AnyDBD');
+
+# print "1..2\n";
+
+# require DBIx::AnyDBD;
+# print "ok 1\n";
+
+# print "ok 2\n";
