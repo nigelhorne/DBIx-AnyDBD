@@ -386,11 +386,13 @@ The following are the known DBD driver name mappings, including ucfirst'ing
 them:
 
     DBD::Oracle => Oracle.pm
+    DBD::SQLite => SQLite.pm
     DBD::Sybase => Sybase.pm
     DBD::Pg => Pg.pm
     DBD::mysql => Mysql.pm
     DBD::Informix => Informix.pm
     DBD::AdabasD => AdabasD.pm
+    DBD::XBase => XBase.pm
 
 If you use this on other platforms, let me know what the mappings are.
 
