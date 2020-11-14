@@ -9,5 +9,9 @@ MANIFEST
 README
 README.md
 t/00-load.t
+t/links.t
+t/no404s.t
 t/pod-cm.t
 t/pod.t
+t/unused.t
+t/used.t
