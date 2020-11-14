@@ -9,6 +9,7 @@ MANIFEST
 README
 README.md
 t/00-load.t
+t/coverage.t
 t/links.t
 t/no404s.t
 t/pod-cm.t

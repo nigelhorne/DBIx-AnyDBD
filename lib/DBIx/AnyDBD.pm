@@ -118,7 +118,7 @@ sub new {
     die "Can't connect: " . DBI->errstr unless $dbh;
     my $package = $args{'package'} || $class;
     my $self = bless { 'package' => $package, dbh => $dbh }, $class;
-    $self->rebless;
+    $self->_rebless();
     $self->_init if $self->can('_init');
     return $self;
 }
@@ -134,7 +134,7 @@ sub new_with_dbh {
 	my ($class, $dbh, $package) = @_;
 	my $self = bless { 'package' => $package, 'dbh' => $dbh }, $class;
 
-	$self->rebless;
+	$self->_rebless();
 	$self->_init if $self->can('_init');
 	
 	return $self;
@@ -160,12 +160,12 @@ sub connect {
     return undef unless $dbh;
     $package ||= $class;
     my $self = bless { 'package' => $package, 'dbh' => $dbh }, $class;
-    $self->rebless;
+    $self->_rebless();
     $self->_init if $self->can('_init');
     return $self;
 }
 
-sub rebless {
+sub _rebless {
     my $self = shift;
     my $driver = ucfirst($self->{dbh}->{Driver}->{Name});
     if ( $driver eq 'Proxy' ) {
@@ -217,13 +217,13 @@ sub rebless {
     
     my $dir;
     ($dir = $self->{package}) =~ s/::/\//g;
-    load_module("$dir/Default.pm") or die "Cannot find $dir/Default.pm module in \@INC for $self->{package}!";
+    _load_module("$dir/Default.pm") or die "Cannot find $dir/Default.pm module in \@INC for $self->{package}!";
 
-    if (!load_module("$dir/$driver.pm")) {
+    if (!_load_module("$dir/$driver.pm")) {
         # no package for driver - use Default instead
         bless $self, "${class}::Default";
         # make Default -> DBIx::AnyDBD hierarchy
-        add_isa("${class}::Default", 'DBIx::AnyDBD');
+        _add_isa("${class}::Default", 'DBIx::AnyDBD');
     }
     else {
         # package OK...
@@ -231,44 +231,44 @@ sub rebless {
         bless $self, "${class}::${driver}";
         
         if ($ado) {
-            if (load_module("$dir/ADO.pm")) {
-                if (!load_module("$dir/ODBC.pm")) {
-                    add_isa("${class}::${driver}", "${class}::ADO");
-                    add_isa("${class}::ADO", "${class}::Default");
+            if (_load_module("$dir/ADO.pm")) {
+                if (!_load_module("$dir/ODBC.pm")) {
+                    _add_isa("${class}::${driver}", "${class}::ADO");
+                    _add_isa("${class}::ADO", "${class}::Default");
                 }
                 else {
-                    add_isa("${class}::${driver}", "${class}::ADO");
-                    add_isa("${class}::ADO", "${class}::ODBC");
-                    add_isa("${class}::ODBC", "${class}::Default");
+                    _add_isa("${class}::${driver}", "${class}::ADO");
+                    _add_isa("${class}::ADO", "${class}::ODBC");
+                    _add_isa("${class}::ODBC", "${class}::Default");
                 }
                 return;
             }
         }
         
         if ($odbc) {
-            if (load_module("$dir/ODBC.pm")) {
-                add_isa("${class}::${driver}", "${class}::ODBC");
-                add_isa("${class}::ODBC", "${class}::Default");
+            if (_load_module("$dir/ODBC.pm")) {
+                _add_isa("${class}::${driver}", "${class}::ODBC");
+                _add_isa("${class}::ODBC", "${class}::Default");
                 return;
             }
         }
         
         # make Default -> DBIx::AnyDBD hierarchy
-        add_isa("${class}::Default", 'DBIx::AnyDBD');
+        _add_isa("${class}::Default", 'DBIx::AnyDBD');
         
         # make Driver -> Default hierarchy
-        add_isa("${class}::${driver}", "${class}::Default");
+        _add_isa("${class}::${driver}", "${class}::Default");
     }
     
 }
 
-sub add_isa {
+sub _add_isa {
     my ($class, $newval) = @_;
     no strict 'refs';
     unshift @{"${class}::ISA"}, $newval unless $class->isa($newval);
 }
 
-sub load_module {
+sub _load_module {
     my $module = shift;
     
     eval {
