@@ -1,5 +1,3 @@
-# $Id: AnyDBD.pm,v 1.15 2002/09/04 12:05:03 matt Exp $
-
 package DBIx::AnyDBD;
 use DBI;
 use warnings;
@@ -375,10 +373,6 @@ sub AUTOLOAD {
     goto &$func;
 }
 
-1;
-
-__END__
-
 =head1 NOTES
 
 =head2 Known DBD Package Mappings
@@ -455,8 +449,6 @@ Maintained by Nigel Horne, C<< <njh at bandsman.co.uk> >>
 =head1 SEE ALSO
 
 Check out the example files in the example/ directory.
-
-=cut
 
 =head1 SUPPORT
 
