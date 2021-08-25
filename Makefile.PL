@@ -21,7 +21,7 @@ WriteMakefile(
 			},
 			bugtracker => {
 				# web => 'https://rt.cpan.org/Public/Dist/Display.html?Name=DBIx-AnyDBD',
-				# mailto => 'bug-DBIx-AnyDBD@rt.cpan.org'
+				mailto => 'bug-DBIx-AnyDBD@rt.cpan.org',
 				web => 'https://github.com/nigelhorne/DBIx-AnyDBD/issues',
 				url => 'https://github.com/nigelhorne/DBIx-AnyDBD/issues',
 			}

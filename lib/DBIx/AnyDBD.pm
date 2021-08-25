@@ -36,11 +36,11 @@ time for whatever DB is currently in use.
 
 That doesn't really tell you much... Because you have to implement a
 bit more than that. Underneath you have to have a module 
-MyClass::Oracle that has methods foo() and blee in it. If those
+MyClass::Oracle that has methods foo() and blee() in it. If those
 methods don't exist in MyClass::Oracle, it will check in MyClass::Default,
 allowing you to implement code that doesn't need to be driver
 dependent in the same module. The foo() and blee() methods will receive
-the DBIx::AnyDBD instance as thier first parameter, and any parameters
+the DBIx::AnyDBD instance as their first parameter, and any parameters
 you pass just go as parameters.
 
 See the example Default.pm and Sybase.pm classes in the AnyDBD directory
@@ -310,10 +310,10 @@ sub DESTROY {
 
 =head2 Controlling error propagation from AUTOLOADed DBI methods
 
-Typicially the implementation packages will make calls to DBI methods
+Typically the implementation packages will make calls to DBI methods
 as though they were methods of the DBIx::AnyDBD object.  If one of
 these methods reports an error in DBI::AnyDBD then the error is caught
-and rethrown by DBIx::AnyDBD so that the error is reported as occuring
+and rethrown by DBIx::AnyDBD so that the error is reported as occurring
 in the implementation module.  It does this by calling Carp::croak()
 with the current package set to DBIx::AnyDBD::Carp.
 
@@ -362,7 +362,7 @@ sub AUTOLOAD {
 	  return unless $@;
       };
       if ( $@ =~ /(.*) at ${\__FILE__} .*$/ ) {
-	  # We want croak() to report errors as occouring
+	  # We want croak() to report errors as occurring
 	  # in the implementation class even though we are related
 	  package DBIx::AnyDBD::Carp;
 	  require Carp;

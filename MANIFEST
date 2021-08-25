@@ -9,10 +9,12 @@ MANIFEST
 README
 README.md
 t/00-load.t
+t/comment-spelling.t
 t/coverage.t
 t/links.t
 t/no404s.t
 t/pod-cm.t
+t/pod-spelling.t
 t/pod.t
 t/unused.t
 t/used.t
