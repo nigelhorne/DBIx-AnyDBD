@@ -1,4 +1,5 @@
 package DBIx::AnyDBD;
+
 use DBI;
 use warnings;
 use strict;
@@ -27,15 +28,15 @@ time for whatever DB is currently in use.
 
 
     use DBIx::AnyDBD;
-    
-    my $db = DBIx::AnyDBD->connect("dbi:Oracle:sid1", 
+
+    my $db = DBIx::AnyDBD->connect("dbi:Oracle:sid1",
         "user", "pass", {}, "MyClass");
 
     my $foo = $db->foo;
     my $blee = $db->blee;
 
 That doesn't really tell you much... Because you have to implement a
-bit more than that. Underneath you have to have a module 
+bit more than that. Underneath you have to have a module
 MyClass::Oracle that has methods foo() and blee() in it. If those
 methods don't exist in MyClass::Oracle, it will check in MyClass::Default,
 allowing you to implement code that doesn't need to be driver
@@ -46,7 +47,7 @@ you pass just go as parameters.
 See the example Default.pm and Sybase.pm classes in the AnyDBD directory
 for an example.
 
-Underneath it's all implemented using the ISA hierarchy, which is modified 
+Underneath it's all implemented using the ISA hierarchy, which is modified
 when you connect to your database. The inheritance tree ensures that the
 right functions get called at the right time. There is also an AUTOLOADer
 that steps in if the function doesn't exist and tries to call the function
@@ -59,9 +60,9 @@ your class (see the list below first) then check that.
 
 =head2 new
 
-    dsn => $dsn, 
-    user => $user, 
-    pass => $pass, 
+    dsn => $dsn,
+    user => $user,
+    pass => $pass,
     attr => $attr,
     package => $package
 
@@ -69,7 +70,7 @@ new() is a named parameter call that connects and creates a new db object
 for your use. The named parameters are dsn, user, pass, attr and package.
 The first 4 are just the parameters passed to DBI->connect, and package
 contains the package prefix for your database dependent modules, for example,
-if package was "MyPackage", the AUTOLOADer would look for 
+if package was "MyPackage", the AUTOLOADer would look for
 MyPackage::Oracle::func, and then MyPackage::Default::func. Beware that the
 DBD driver will be ucfirst'ed, because lower case package names are reserved
 as pragmas in perl. See the known DBD package mappings below.
@@ -103,8 +104,8 @@ sub new {
 	return unless(defined($class));
 
     my $dbh = DBI->connect(
-            $args{dsn}, 
-            $args{user}, 
+            $args{dsn},
+            $args{user},
             $args{pass},
             ($args{attr} ||
                 {
@@ -134,7 +135,7 @@ sub new_with_dbh {
 
 	$self->_rebless();
 	$self->_init if $self->can('_init');
-	
+
 	return $self;
 }
 
@@ -174,18 +175,18 @@ sub _rebless {
     my ($odbc, $ado) = ($driver eq 'ODBC', $driver eq 'ADO');
     if ($odbc || $ado) {
         my $name;
-        
+
         if ($odbc) {
             no strict;
             $name = $self->{dbh}->func(17, GetInfo);
         }
         elsif ($ado) {
             $name = $self->{dbh}->{ado_conn}->Properties->Item('DBMS Name')->Value;
-        } 
+        }
         else {
             die "Can't determine driver name!\n";
         }
-        
+
         if ($name eq 'Microsoft SQL Server') {
             $driver = 'MSSQL';
         }
@@ -212,7 +213,7 @@ sub _rebless {
             $driver =~ s/\s+/_/g;
         }
     }
-    
+
     my $dir;
     ($dir = $self->{package}) =~ s/::/\//g;
     _load_module("$dir/Default.pm") or die "Cannot find $dir/Default.pm module in \@INC for $self->{package}!";
@@ -225,9 +226,9 @@ sub _rebless {
     }
     else {
         # package OK...
-        
+
         bless $self, "${class}::${driver}";
-        
+
         if ($ado) {
             if (_load_module("$dir/ADO.pm")) {
                 if (!_load_module("$dir/ODBC.pm")) {
@@ -242,7 +243,7 @@ sub _rebless {
                 return;
             }
         }
-        
+
         if ($odbc) {
             if (_load_module("$dir/ODBC.pm")) {
                 _add_isa("${class}::${driver}", "${class}::ODBC");
@@ -250,14 +251,14 @@ sub _rebless {
                 return;
             }
         }
-        
+
         # make Default -> DBIx::AnyDBD hierarchy
         _add_isa("${class}::Default", 'DBIx::AnyDBD');
-        
+
         # make Driver -> Default hierarchy
         _add_isa("${class}::${driver}", "${class}::Default");
     }
-    
+
 }
 
 sub _add_isa {
@@ -268,7 +269,7 @@ sub _add_isa {
 
 sub _load_module {
     my $module = shift;
-    
+
     eval {
         require $module;
     };
@@ -281,7 +282,7 @@ sub _load_module {
             die $@;
         }
     }
-    
+
     return 1;
 }
 
@@ -322,15 +323,15 @@ report the error in the line containing the original method call on
 the DBIx::AnyDBD object.  In this case you should temporarily set
 @DBIx::AnyDBD::Carp::ISA.
 
-    my $db = DBIx::AnyDBD->connect("dbi:Oracle:sid1", 
+    my $db = DBIx::AnyDBD->connect("dbi:Oracle:sid1",
         "user", "pass", {}, "MyClass");
 
     my $foo = $db->foo;
     my $blee = $db->blee("too few arguments"); # Error reported here
 
     package MyClass::Oracle;
-    
-    sub foo { 
+
+    sub foo {
 	shift->prepare("Invalid SQL"); # Error reported here
     }
 
@@ -348,7 +349,7 @@ sub AUTOLOAD {
     # *$func = sub {
     #	  unshift @_ => shift->get_dbh;
     #	  goto &{$_[0]->can($func)};
-    # };    
+    # };
     *$func = sub {
       my $dbh = shift->get_dbh;
       if (wantarray) {
@@ -437,7 +438,7 @@ need this module!
 
 =head1 LICENCE
 
-This module is free software, and you may distribute it under the same 
+This module is free software, and you may distribute it under the same
 terms as Perl itself.
 
 =head1 AUTHOR
@@ -475,10 +476,6 @@ L<http://cpants.cpanauthors.org/dist/DBIx-AnyDBD>
 =item * CPAN Testers' Matrix
 
 L<http://matrix.cpantesters.org/?dist=DBIx-AnyDBD>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/DBIx-AnyDBD>
 
 =item * CPAN Testers Dependencies
 

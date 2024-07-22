@@ -40,7 +40,7 @@ sub commit {
 
 sub rollback {
     my $self = shift;
-    
+
     my $dbh = $self->get_dbh;
     if (!$dbh->{AutoCommit}) {
         $dbh->rollback;
@@ -306,7 +306,7 @@ sub sql_date {
 sub sql_date_struct {
     my $self = shift;
     my $struct = shift;
-    
+
     my $date = sprintf("%04d/%02d/%02d",
             $struct->{year},
             $struct->{month},
@@ -332,21 +332,21 @@ sub sql_date_struct {
 
 sub match_user {
     my $self = shift;
-    
+
     my ($username, $password) = @_;
-    
+
     my ($user_id) = $self->get_one_row(
             sql => "SELECT id FROM CMSUser WHERE username = ? AND password_md5 = ?",
             bind => [ $username, md5_hex($password) ],
             );
-    
+
     return $user_id;
 }
 
 sub get_asset {
     my $self = shift;
     my %p = @_;
-    
+
     my @bind;
     push @bind, $p{asset_id} if $p{asset_id};
     push @bind, $p{status} if $p{status};
@@ -376,8 +376,8 @@ sub get_asset {
                            WebItem.location,
                            WebItem.booth,
                            WebItem.body
-                    FROM WebItem 
-                    JOIN ItemType 
+                    FROM WebItem
+                    JOIN ItemType
                       ON WebItem.item_type_id = ItemType.id
                     JOIN ItemStatus
                       ON WebItem.item_status_id = ItemStatus.id
@@ -396,10 +396,10 @@ sub get_asset {
 sub update_announce {
     my $self = shift;
     my %p = @_;
-    
+
     $p{expires} = $self->sql_date_struct($p{expires});
     $p{live} = $self->sql_date_struct($p{live});
-    
+
     $self->do_sql(
             sql => "UPDATE WebItem
                     SET title = ?,
@@ -414,10 +414,10 @@ sub update_announce {
 sub update_news {
     my $self = shift;
     my %p = @_;
-    
+
     $p{expires} = $self->sql_date_struct($p{expires});
     $p{live} = $self->sql_date_struct($p{live});
-    
+
     $self->do_sql(
             sql => "UPDATE WebItem
                     SET title = ?,
@@ -432,10 +432,10 @@ sub update_news {
 sub update_event {
     my $self = shift;
     my %p = @_;
-    
+
     $p{expires} = $self->sql_date_struct($p{expires});
     $p{live} = $self->sql_date_struct($p{live});
-    
+
     $self->do_sql(
             sql => "UPDATE WebItem
                     SET title = ?,
@@ -452,10 +452,10 @@ sub update_event {
 sub update_pr {
     my $self = shift;
     my %p = @_;
-    
+
     $p{expires} = $self->sql_date_struct($p{expires});
     $p{live} = $self->sql_date_struct($p{live});
-    
+
     $self->do_sql(
             sql => "UPDATE WebItem
                     SET title = ?,
@@ -472,7 +472,7 @@ sub update_pr {
 sub update_asset_column {
     my $self = shift;
     my ($id, $column, $value) = @_;
-    
+
     $self->do_sql(
                 sql => "UPDATE WebItem
                         SET $column = ?
@@ -484,14 +484,14 @@ sub update_asset_column {
 sub create_asset {
     my $self = shift;
     my %p = @_;
-    
+
     $p{expires} = $self->sql_date_struct($p{expires} || {year => 2030, month => 1, day_of_month => 1 });
     $p{live} = $self->sql_date_struct($p{live} || { year => 1970, month => 1, day_of_month => 1 });
-    
+
     # get defaults
-    my ($item_group_id, $item_status_id, $item_type_id) = 
+    my ($item_group_id, $item_status_id, $item_type_id) =
         $self->get_one_row(
-            sql => "SELECT ItemGroup.id AS itemgroup_id, 
+            sql => "SELECT ItemGroup.id AS itemgroup_id,
                             ItemStatus.id AS itemstatus_id,
                             ItemType.id AS itemtype_id
                     FROM ItemGroup, ItemStatus, ItemType
@@ -500,9 +500,9 @@ sub create_asset {
                     AND   ItemType.short_desc = ?",
             bind => [ $p{asset_type} ],
         );
-    
+
     my $next_id = $self->get_next_pk(table => "WebItem");
-    
+
     $self->do_sql(
             sql => "INSERT INTO WebItem (id, item_type_id,
                     item_status_id, item_group_id,
@@ -510,37 +510,37 @@ sub create_asset {
                     title, link, subtitle, location,
                     booth, body )
                     VALUES ( ?, ?,
-                    ?, ?, 
+                    ?, ?,
                     now(), ?, ?,
                     ?, ?, ?, ?,
                     ?, ? )",
             bind => [ $next_id, $item_type_id, $item_status_id, $p{item_group_id} || $item_group_id,
                       @p{qw(live expires title link subtitle location booth body)} ],
             );
-    
+
     return $next_id;
 }
 
 sub get_create_pages {
     my $self = shift;
-    
+
     my @rows = $self->get_rows(
             sql => "SELECT short_desc, create_page FROM ItemType ORDER BY id"
             );
-    
+
     my @results;
-    
+
     foreach my $row (@rows) {
         push @results, @$row;
     }
-    
+
     return @results;
 }
 
 sub get_edit_page {
     my $self = shift;
     my %p = @_;
-    
+
     my $page;
     if ($p{create_page}) {
         $page = $self->get_one_row(
@@ -564,7 +564,7 @@ sub get_edit_page {
 sub get_view_page {
     my $self = shift;
     my %p = @_;
-    
+
     my $page;
     if ($p{create_page}) {
         $page = $self->get_one_row(
@@ -587,7 +587,7 @@ sub get_view_page {
 
 sub list_users {
     my $self = shift;
-    
+
     return $self->get_rows_hashref(
             sql => "SELECT * FROM CMSUser ORDER BY super_user, last_name, first_name",
             );
@@ -596,7 +596,7 @@ sub list_users {
 sub is_super_user {
     my $self = shift;
     my $user_id = shift;
-    
+
     return $self->get_one_row(
             sql => "SELECT super_user FROM CMSUser WHERE id = ?",
             bind => $user_id,
@@ -608,13 +608,13 @@ use Digest::MD5 qw(md5_hex);
 sub add_user {
     my $self = shift;
     my %p = @_;
-    
+
     $p{password_md5} = md5_hex($p{password});
     $p{super_user} = $p{super_user} ? 't' : 'f';
-    
+
     $self->do_sql(
-            sql => "INSERT INTO CMSUser 
-                    (id, username, password_md5, 
+            sql => "INSERT INTO CMSUser
+                    (id, username, password_md5,
                     first_name, last_name, email, super_user)
                     VALUES
                     (nextval('CMSUser_seq'), ?, ?, ?, ?, ?, ?)",
@@ -625,7 +625,7 @@ sub add_user {
 sub get_user {
     my $self = shift;
     my $id = shift;
-    
+
     return {
         $self->get_one_row_hash(
                 sql => "SELECT * FROM CMSUser WHERE id = ?",
@@ -637,13 +637,13 @@ sub get_user {
 sub update_user {
     my $self = shift;
     my %p = @_;
-    
+
     if ($p{password}) {
         $p{password_md5} = md5_hex($p{password});
     }
-    
+
     $p{super_user} = $p{super_user} ? 't' : 'f';
-    
+
     $self->do_sql(
                 sql => "UPDATE CMSUser
                         SET first_name = ?,
@@ -660,7 +660,7 @@ sub update_user {
 sub get_user_id {
     my $self = shift;
     my $username = shift;
-    
+
     return $self->get_one_row(
             sql => "SELECT id FROM CMSUser WHERE username = ?",
             bind => $username,
@@ -672,9 +672,9 @@ sub log {
     my $log_text = join('', @_);
 
     my $next_id = $self->get_next_pk(table => "CMSLog");
-    
+
     my $user_id = $self->get_user_id(Example::User::get_user());
-    
+
     $self->do_sql(
             sql => "INSERT INTO CMSLog (id, user_id, log_detail)
                     VALUES ( ?, ?, ? )",
@@ -684,14 +684,14 @@ sub log {
 
 sub set_status {
     my $self = shift;
-    
+
     my ($status, $asset_id) = @_;
-    
+
     if ($status =~ /\D/) {
         # status is a description
         $self->do_sql(
-                sql => "UPDATE WebItem SET item_status_id = 
-                        (SELECT ItemStatus.id FROM ItemStatus 
+                sql => "UPDATE WebItem SET item_status_id =
+                        (SELECT ItemStatus.id FROM ItemStatus
                          WHERE ItemStatus.description = ?)
                         WHERE WebItem.id = ?",
                 bind => [ $status, $asset_id ],
@@ -709,7 +709,7 @@ sub set_status {
 
 sub get_statuses {
     my $self = shift;
-    
+
     my @rows = $self->get_rows(
                 sql => "SELECT id, description
                         FROM ItemStatus
@@ -720,7 +720,7 @@ sub get_statuses {
 
 sub get_asset_types {
     my $self = shift;
-    
+
     my @rows = $self->get_rows(
                 sql => "SELECT id, short_desc
                         FROM ItemType
@@ -732,7 +732,7 @@ sub get_asset_types {
 sub get_long_desc {
     my $self = shift;
     my %p = @_;
-    
+
     $self->get_one_row(
                 sql => "SELECT long_desc FROM ItemType WHERE short_desc = ?",
                 bind => $p{type},
@@ -742,12 +742,12 @@ sub get_long_desc {
 sub validate_date {
     my $self = shift;
     my (%date_struct) = @_;
-    
+
     # Note: We're using WebItem here to do selects against simply because
     # selecting from no table is different depending on what DB you're using.
     # This allows us to do it db independantly, saving us one method to port
     # to Oracle should it be needed.
-    
+
     my $date_str = $self->sql_date_struct(\%date_struct);
     eval {
         $self->do_sql(sql => "SELECT id FROM WebItem WHERE date_created > ?", bind => $date_str);
@@ -755,7 +755,7 @@ sub validate_date {
     if ($@) {
         die "Invalid date";
     }
-    
+
     eval {
         my $row = $self->get_one_row(sql => "SELECT id FROM WebItem WHERE now() > ?", bind => $date_str);
         if ($row) {
@@ -771,12 +771,12 @@ sub validate_date {
 sub compare_dates {
     my $self = shift;
     my ($date1, $date2) = @_;
-    
+
     my $date1_str = $self->sql_date_struct($date1);
     my $date2_str = $self->sql_date_struct($date2);
-    
+
     # NB: PostgreSQL specific code.
-    
+
     return $self->get_one_row(
                 sql => "SELECT CAST(? AS DATE) - CAST(? AS DATE)",
                 bind => [ $date1_str, $date2_str ],

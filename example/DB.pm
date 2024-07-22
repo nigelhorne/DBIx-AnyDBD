@@ -30,12 +30,12 @@ sub instance {
         # rollback uncommited transactions
         # this doesn't work where multiple nested method calls might call instance()
         # $DB->rollback;
-        
+
         return $DB;
     }
 
     my $class = shift;
-    
+
     my $x = 0;
     do {
 	if ($DB) {
@@ -78,11 +78,11 @@ Example::DB - Example class for DBIx::AnyDBD usage
   Example::DB->set_dsn('dbi:Pg:dbname=foo');
   Example::DB->set_user('matt');
   Example::DB->set_password('blueberry');
-  
+
   my $db = Example::DB->instance();
-  
+
   my @users = $db->get_users(); # called from Example/DB/Pg.pm
-  
+
   # NB: This is just an example. It is designed not for usage,
   #     but so that you read the source code!
 
