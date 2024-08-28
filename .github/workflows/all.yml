@@ -1,3 +1,8 @@
+---
+# See https://github.com/actions/virtual-environments
+# https://github.com/marketplace/actions/setup-perl-environment
+
+name: Test Code
 on:
   push:
     branches:
@@ -5,13 +10,19 @@ on:
     tags-ignore:
       - '*'
   pull_request:
+  schedule:
+    - cron: '32 4 29 * *'
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: ['windows-latest', 'macos-latest', 'ubuntu-latest']
-        perl: [ '5.30', '5.28' ]
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+        perl: ['5.38', '5.36', '5.34', '5.32', '5.30', '5.28', '5.22']
     name: Perl ${{ matrix.perl }} on ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -22,8 +33,16 @@ jobs:
       - run: perl -V
       - name: Install Dependencies
         run: |
-          cpanm -iq File::Spec ExtUtils::MakeMaker
+          cpanm -iq ExtUtils::MakeMaker Test::Most
           cpanm -q -n Test::Pod::Spelling::CommonMistakes Test::Portability::Files Test::Pod::Coverage
           cpanm -iq --installdeps --notest .
+      - name: Make Module
+        run: |
+          # find . -name build.log | xargs cat
+          perl Makefile.PL
+          make
       - name: Run Tests
-        run: prove -l t
+        run: prove -l -b t
+        env:
+          AUTHOR_TESTING: 1
+          AUTOMATED_TESTING: 1
