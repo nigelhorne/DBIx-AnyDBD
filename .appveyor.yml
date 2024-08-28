@@ -1,14 +1,20 @@
+---
 version: 1.0.{build}
 
 image:
   - Visual Studio 2015
-  - Ubuntu
+  - Visual Studio 2017
+  - Visual Studio 2019
   - ubuntu1804
+  - Ubuntu
 
 environment:
   PERL5LIB: /home/appveyor/perl5/lib/perl5
   AUTOMATED_TESTING: 1
+  # TEST_VERBOSE: 1
   DEBIAN_FRONTEND: noninteractive
+  PERL_MM_USE_DEFAULT: 1
+  NO_NETWORK_TESTING: 1
 
 platform: x64
 
@@ -29,6 +35,7 @@ install:
   - cmd: mkdir %APPVEYOR_BUILD_FOLDER%\tmp
   - cmd: set TMPDIR=%APPVEYOR_BUILD_FOLDER%\tmp
   - cpan App::cpanminus
+  - cmd: cpan -i Test::Needs Test::Most
   - cmd: cpanm -q --showdeps --with-develop --with-suggests . | findstr /v "^perl\>" | cpanm -n
   - cpanm -qin --skip-installed --installdeps .
   - cmd: 'echo End install at: & time /t'
