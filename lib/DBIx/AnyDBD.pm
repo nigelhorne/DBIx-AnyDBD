@@ -114,7 +114,7 @@ sub new {
                     RaiseError => 1,
                 })
             );
-    die "Can't connect: " . DBI->errstr unless $dbh;
+    die "Can't connect: ", DBI->errstr() unless $dbh;
     my $package = $args{'package'} || $class;
     my $self = bless { 'package' => $package, dbh => $dbh }, $class;
     $self->_rebless();
@@ -184,7 +184,7 @@ sub _rebless {
             $name = $self->{dbh}->{ado_conn}->Properties->Item('DBMS Name')->Value;
         }
         else {
-            die "Can't determine driver name!\n";
+            die "Can't determine driver name!";
         }
 
         if ($name eq 'Microsoft SQL Server') {
@@ -267,23 +267,23 @@ sub _add_isa {
     unshift @{"${class}::ISA"}, $newval unless $class->isa($newval);
 }
 
-sub _load_module {
-    my $module = shift;
+sub _load_module
+{
+	my $module = shift;
 
-    eval {
-        require $module;
-    };
-    if ($@) {
-        if ($@ =~ /^Can't locate $module in \@INC/) {
-            undef $@;
-            return 0;
-        }
-        else {
-            die $@;
-        }
-    }
+	eval {
+		require $module;
+	};
+	if($@) {
+		if ($@ =~ /^Can't locate $module in \@INC/) {
+			undef $@;
+			return 0;
+		}
+		die $@;
+	}
 
-    return 1;
+	$module->import();
+	return 1;
 }
 
 =head2 $db->get_dbh()
@@ -450,6 +450,8 @@ Maintained by Nigel Horne, C<< <njh at bandsman.co.uk> >>
 =head1 SEE ALSO
 
 Check out the example files in the example/ directory.
+
+L<Database::Abstraction>
 
 =head1 SUPPORT
 
