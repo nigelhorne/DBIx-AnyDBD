@@ -22,7 +22,9 @@ WriteMakefile(
 		FILES => 'DBIx-AnyDBD-*'
 	}, dist => $dist,
 	TEST_REQUIRES => {
+		'Test::DescribeMe' => 0,
 		'Test::Most' => 0,
+		'Test::Needs' => 0,
 	}, PREREQ_PM => {
 		'DBI' => 0,
 	}, META_MERGE => {
