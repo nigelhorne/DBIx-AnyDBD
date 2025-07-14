@@ -1,5 +1,9 @@
 Changes for DBIx::AnyDBD
 
+2.04
+	Run import when loading a module
+	Added licence to Makefile.PL
+
 2.03	Fri Nov 13 20:54:16 EST 2020
 	Added new_with_dbh, RT#5661
 	Added extra mappings, RT#4785

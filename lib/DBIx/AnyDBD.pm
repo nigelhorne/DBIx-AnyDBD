@@ -445,7 +445,7 @@ terms as Perl itself.
 
 Matt Sergeant, C<< <matt@sergeant.org> >>
 
-Maintained by Nigel Horne, C<< <njh at bandsman.co.uk> >>
+Maintained by Nigel Horne, C<< <njh at nigelhorne.com> >>
 
 =head1 SEE ALSO
 

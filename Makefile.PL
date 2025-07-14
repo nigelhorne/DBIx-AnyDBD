@@ -1,11 +1,26 @@
 use ExtUtils::MakeMaker;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
+
+my $dist = {
+	COMPRESS => 'gzip -9f',	# Compress tarball using gzip
+	SUFFIX => 'gz',	# File suffix for tarball
+};
+
+if($^O eq 'darwin') {
+	$dist->{'TAR'} = 'gtar';
+}
+
 WriteMakefile(
 	NAME	=> 'DBIx::AnyDBD',
 	ABSTRACT_FROM => 'lib/DBIx/AnyDBD.pm',
-	AUTHOR		=> q{Nigel Horne <njh@bandsman.co.uk>},
-	clean		=> { FILES => 'DBIx-AnyDBD-*' },
+	AUTHOR		=> q{Nigel Horne <njh@nigelhorne.com>},
+	((defined($ExtUtils::MakeMaker::VERSION) && ($ExtUtils::MakeMaker::VERSION >= 6.3002))
+		? ('LICENSE'=> 'GPL')
+		: ()),
+	clean	=> {
+		FILES => 'DBIx-AnyDBD-*'
+	}, dist => $dist,
 	TEST_REQUIRES => {
 		'Test::Most' => 0,
 	}, PREREQ_PM => {
